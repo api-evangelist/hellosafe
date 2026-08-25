@@ -1,0 +1,85 @@
+{
+  "aod": "0.1",
+  "provider": {
+    "name": "HelloSafe Atlas",
+    "url": "https://atlas.hellosafe.com",
+    "portalUrl": "https://atlas.hellosafe.com/platform/api"
+  },
+  "maturity": "console-only",
+  "account": {
+    "required": true,
+    "signupUrl": "https://atlas.hellosafe.com/signup",
+    "agentPolicy": "prohibited",
+    "prerequisites": [
+      "A HelloSafe Atlas partner account, reviewed and approved by a human before any key is issued.",
+      "A travel business to distribute the insurance through: agency, tour operator, OTA, booking engine, travel app or creator."
+    ],
+    "termsOfService": {
+      "url": "https://atlas.hellosafe.com/legal/terms",
+      "acceptance": "console-only"
+    },
+    "plans": [
+      {
+        "name": "Sandbox",
+        "requiredFor": "Building and testing the integration. Deterministic fixtures in the exact live response shape. No insurer is called, no subscription is created, no card required.",
+        "url": "https://atlas.hellosafe.com/platform/api"
+      },
+      {
+        "name": "Live",
+        "requiredFor": "Pricing the real multi-insurer catalogue and minting tracked subscription links. No fee to the partner: HelloSafe is paid by the insurer and shares a commission on each completed sale.",
+        "url": "https://atlas.hellosafe.com/platform/api"
+      }
+    ]
+  },
+  "registration": {
+    "applicationNoun": "API key",
+    "owner": "organization",
+    "mechanisms": [
+      {
+        "type": "console-only",
+        "description": "Keys are issued by a human today. Request access from the API page or /contact, and a key id plus signing secret are provisioned against the reviewed partner account. A self-serve sandbox key is planned; this descriptor changes when it ships.",
+        "baseUrl": "https://atlas.hellosafe.com/api/v1/travel",
+        "docsUrls": ["https://atlas.hellosafe.com/platform/api"],
+        "auth": "request-signing"
+      }
+    ]
+  },
+  "authentication": {
+    "methods": [
+      {
+        "id": "atlas-hmac-v2",
+        "type": "request-signing",
+        "header": "x-atlas-signature",
+        "signing": "HMAC-SHA256 over `${timestamp}.${METHOD}.${pathname}.${rawBody}`, hex-encoded and prefixed with `v2=`. Sent alongside x-atlas-key-id and x-atlas-timestamp; a timestamp outside a 5 minute window is rejected. The signature covers the raw request body byte for byte.",
+        "bootstrap": "Request access at https://atlas.hellosafe.com/platform/api",
+        "notes": "Server to server only. These responses carry no CORS header on purpose: the signing secret must never reach a browser."
+      }
+    ]
+  },
+  "credentials": [
+    {
+      "type": "api-key",
+      "fields": { "api_key": "x-atlas-key-id" },
+      "oneTimeDisplay": true,
+      "rotation": "Rotation and revocation are handled by HelloSafe Atlas on request. A revoked key is rejected on the next call."
+    }
+  ],
+  "scopes": {
+    "model": "scope-strings",
+    "notes": "A key carries explicit scopes and is rejected with 403 without them. `quotes` covers the read path (GET /api/v1/travel/meta and POST /api/v1/travel/quotes). `quotes.link` covers the write path (POST /api/v1/travel/links) and has a deliberately lower daily quota, because one link is one traveller.",
+    "vocabularyUrl": "https://atlas.hellosafe.com/openapi.json"
+  },
+  "economics": {
+    "pricingUrl": "https://atlas.hellosafe.com/platform/api",
+    "freeTier": "Sandbox: deterministic fixtures, no insurer called, no card required. The live catalogue also costs the partner nothing. HelloSafe is paid by the insurer and shares a commission on each completed sale."
+  },
+  "gaps": [
+    "Key issuance is console-only. A human provisions the key id and signing secret after reviewing the partner account; there is no self-serve sandbox key yet.",
+    "There is no programmatic rotation endpoint. Rotating or revoking a key is a support request.",
+    "Agent-driven onboarding is not supported, because a key is bound to an approved partner account and to the commission agreement behind it."
+  ],
+  "securityProfile": {
+    "tier": "normal",
+    "senderConstraining": "none"
+  }
+}

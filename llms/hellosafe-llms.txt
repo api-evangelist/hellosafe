@@ -1,0 +1,38 @@
+# HelloSafe Atlas
+
+> Atlas is HelloSafe's partner platform for distributing travel insurance. Travel agencies, tour operators, OTAs, booking engines and travel creators use it to quote, sell and get paid on travel insurance without becoming an insurer or holding a distribution licence. Three integration paths: a tracked link, an embeddable widget, and a REST API.
+
+Atlas is multilingual (31 markets). English pages are unprefixed; other markets sit under a locale prefix such as /fr-fr/ or /de-de/.
+
+## Travel Insurance API
+
+- [Travel Insurance API](https://atlas.hellosafe.com/platform/api): what the API does, the three integration paths, the conversion postback, and how to request access.
+- [OpenAPI 3.1 specification](https://atlas.hellosafe.com/openapi.json): machine-readable definition of every public endpoint.
+- [apis.json discovery manifest](https://atlas.hellosafe.com/.well-known/apis.json): index of the Atlas APIs.
+- [API Onboarding descriptor](https://atlas.hellosafe.com/.well-known/api-onboarding): what it takes to get a key, the plans, and an honest list of what still needs a human.
+
+Endpoints, all signed server-to-server with an HMAC-SHA256 handshake (`x-atlas-key-id`, `x-atlas-timestamp`, `x-atlas-signature`):
+
+- `GET /api/v1/travel/meta`: reference data. The 15 trip types, 26 funnel languages, guarantee vocabulary with labels and groups, guarantee states, request ceilings, and the calling key's environment and quota. Does not consume quota.
+- `POST /api/v1/travel/quotes`: prices one trip against the multi-insurer catalogue. Returns offers cheapest first with premium, guarantee ceilings, highlights and policy documents. Read-only.
+- `POST /api/v1/travel/links`: mints a tracked subscription link with the partner's affiliate reference baked in server-side, so attribution survives copy-paste and cannot be forged. Supports `Idempotency-Key`.
+- `POST /api/postback/conversion`: signed conversion postback, re-resolved and partner-checked before any commission is recorded.
+
+Every key ships with a free sandbox that returns deterministic fixtures in the exact live response shape, so an integration can be built and tested end to end before an insurer is ever called.
+
+## Other integration paths
+
+- [Embeddable widget](https://atlas.hellosafe.com/platform/marketplace): a script tag that drops a quote-and-buy flow into any site, no development required.
+- [Coach](https://atlas.hellosafe.com/platform/coach): scores a traveller's existing coverage against a destination and returns the gaps, so an agent knows what to sell and why. Available as a link, an embed and a signed API.
+- [Platform overview](https://atlas.hellosafe.com/platform): the whole partner platform.
+
+## Who it is for
+
+- [Travel agencies](https://atlas.hellosafe.com/for/travel-agency)
+- [Tour operators](https://atlas.hellosafe.com/for/tour-operator)
+- [Travel insurance affiliate program](https://atlas.hellosafe.com/travel-insurance-affiliate-program)
+
+## Legal
+
+- [Terms](https://atlas.hellosafe.com/legal/terms)
+- [Privacy](https://atlas.hellosafe.com/legal/privacy)

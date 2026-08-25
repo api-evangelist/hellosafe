@@ -1,0 +1,103 @@
+{
+  "aid": "com.hellosafe.atlas",
+  "name": "HelloSafe Atlas",
+  "type": "Index",
+  "description": "APIs for distributing travel insurance: multi-insurer pricing, tracked attributed links, and a pre-sale coverage assessment. Built for travel agencies, tour operators, OTAs, booking engines and travel apps.",
+  "image": "https://atlas.hellosafe.com/og-image.png",
+  "url": "https://atlas.hellosafe.com/.well-known/apis.json",
+  "specificationVersion": "0.18",
+  "created": "2026-08-25",
+  "modified": "2026-08-25",
+  "tags": [
+    "Travel Insurance",
+    "Insurance",
+    "Travel",
+    "Embedded Insurance",
+    "Insurtech",
+    "Quotes",
+    "Affiliate"
+  ],
+  "apis": [
+    {
+      "aid": "com.hellosafe.atlas.travel-insurance",
+      "name": "HelloSafe Travel Insurance API",
+      "description": "Price a trip against a multi-insurer travel insurance catalogue and get back comparable offers with premiums, guarantee ceilings and policy documents, then mint a tracked subscription link so the sale is attributed and paid as commission. Free sandbox on every key, returning deterministic fixtures in the exact live response shape.",
+      "image": "https://atlas.hellosafe.com/og-image.png",
+      "humanURL": "https://atlas.hellosafe.com/platform/api",
+      "baseURL": "https://atlas.hellosafe.com/api/v1/travel",
+      "tags": [
+        "Travel Insurance",
+        "Travel Insurance API",
+        "Embedded Insurance",
+        "Insurance Quotes",
+        "Tour Operators",
+        "Travel Agencies",
+        "White Label"
+      ],
+      "properties": [
+        {
+          "type": "Documentation",
+          "url": "https://atlas.hellosafe.com/platform/api"
+        },
+        {
+          "type": "OpenAPI",
+          "url": "https://atlas.hellosafe.com/openapi.json"
+        },
+        {
+          "type": "APIOnboarding",
+          "url": "https://atlas.hellosafe.com/.well-known/api-onboarding"
+        },
+        {
+          "type": "SecurityAuth",
+          "url": "https://atlas.hellosafe.com/platform/api#faq"
+        },
+        {
+          "type": "Sandbox",
+          "url": "https://atlas.hellosafe.com/platform/api"
+        },
+        {
+          "type": "SignUp",
+          "url": "https://atlas.hellosafe.com/signup"
+        },
+        {
+          "type": "TermsOfService",
+          "url": "https://atlas.hellosafe.com/legal/terms"
+        },
+        {
+          "type": "PrivacyPolicy",
+          "url": "https://atlas.hellosafe.com/legal/privacy"
+        }
+      ]
+    },
+    {
+      "aid": "com.hellosafe.atlas.coach",
+      "name": "HelloSafe Coach API",
+      "description": "Signed server-to-server endpoint that scores a traveller's existing coverage (card, mutuelle, social security) against a destination and returns the gaps, so an agent knows what to sell and why.",
+      "image": "https://atlas.hellosafe.com/og-image.png",
+      "humanURL": "https://atlas.hellosafe.com/platform/coach",
+      "baseURL": "https://atlas.hellosafe.com/api/v1/coach",
+      "tags": [
+        "Travel Insurance",
+        "Coverage Assessment",
+        "Travel"
+      ],
+      "properties": [
+        {
+          "type": "Documentation",
+          "url": "https://atlas.hellosafe.com/platform/coach"
+        },
+        {
+          "type": "OpenAPI",
+          "url": "https://atlas.hellosafe.com/openapi.json"
+        }
+      ]
+    }
+  ],
+  "maintainers": [
+    {
+      "FN": "HelloSafe Atlas",
+      "email": "atlas@hellosafe.com",
+      "url": "https://atlas.hellosafe.com"
+    }
+  ]
+}

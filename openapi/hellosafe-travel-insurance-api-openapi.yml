@@ -1,0 +1,594 @@
+openapi: 3.1.0
+info:
+  title: HelloSafe Travel Insurance API
+  version: 1.0.0
+  summary: Price and sell travel insurance from any travel product.
+  description: 'A REST API that prices a trip against a multi-insurer travel insurance catalogue and returns
+    comparable offers with their guarantees, then mints a tracked subscription link so the sale is attributed
+    and paid as commission. Built for travel agencies, tour operators, OTAs, booking engines and travel
+    apps that want to add travel insurance without becoming an insurer or holding a distribution licence.
+
+
+    Every key ships with a free sandbox that returns deterministic fixtures in the exact live response
+    shape, so an integration can be built and tested end to end before a single insurer is called.
+
+
+    **Authentication** is a per-caller HMAC-SHA256 handshake, server to server. Send three headers:
+
+
+    - `x-atlas-key-id`: your key id
+
+    - `x-atlas-timestamp`: unix seconds, rejected beyond a 5 minute window
+
+    - `x-atlas-signature`: `v2=` + hex HMAC-SHA256 of `${timestamp}.${METHOD}.${pathname}.${rawBody}`,
+    keyed with your signing secret
+
+
+    The signature covers the raw request body byte for byte. There is no CORS header on these responses:
+    the signing secret must never reach a browser.'
+  termsOfService: https://atlas.hellosafe.com/legal/terms
+  contact:
+    name: HelloSafe Atlas
+    url: https://atlas.hellosafe.com/platform/api
+    email: atlas@hellosafe.com
+  x-logo:
+    url: https://atlas.hellosafe.com/hellosafe-logo.svg
+  license:
+    name: Proprietary
+    url: https://atlas.hellosafe.com/legal/terms
+externalDocs:
+  description: Travel insurance API documentation
+  url: https://atlas.hellosafe.com/platform/api
+servers:
+- url: https://atlas.hellosafe.com
+  description: Production. Sandbox versus live is decided by your key, not by the URL.
+tags:
+- name: Quotes
+  description: Price a trip and read the catalogue vocabulary.
+- name: Links
+  description: Turn a chosen offer into a tracked, attributed subscription link.
+- name: Conversion
+  description: Server-to-server conversion postback.
+security:
+- AtlasKeyId: []
+  AtlasTimestamp: []
+  AtlasSignature: []
+paths:
+  /api/v1/travel/meta:
+    get:
+      tags:
+      - Quotes
+      operationId: getTravelMeta
+      summary: Reference data and key state
+      description: 'The vocabulary a caller would otherwise hard-code: the 15 trip types, the 26 funnel
+        languages, the guarantee slugs with their English labels and groups, the guarantee states a response
+        can carry, the request ceilings, and your key''s own environment and quota. Does not consume quota.'
+      responses:
+        '200':
+          description: Reference data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetaResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/travel/quotes:
+    post:
+      tags:
+      - Quotes
+      operationId: createTravelQuote
+      summary: Price a trip
+      description: 'Prices one trip against the travel catalogue and returns the priced offers, cheapest
+        first, each with its premium, its guarantee ceilings and its policy documents. Read-only: nothing
+        is stored, no subscription is created and no attribution happens here.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteRequest'
+            examples:
+              twoWeeksInThailand:
+                summary: One adult, two weeks in Thailand
+                value:
+                  trip:
+                    intent: forTourism
+                    startDate: '2026-09-10'
+                    endDate: '2026-09-24'
+                    countryResidence: FR
+                    arrivalCountries:
+                    - TH
+                    travellers:
+                    - age: 32
+                    tripPrice: 1500
+                    currency: EUR
+                    shouldCoverCancellation: false
+                    shouldCoverExtremeSports: false
+                    isAnnual: false
+                  language: en
+      responses:
+        '200':
+          description: Priced offers.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+        '502':
+          description: Upstream pricing failed.
+        '504':
+          description: Upstream pricing timed out.
+  /api/v1/travel/links:
+    post:
+      tags:
+      - Links
+      operationId: createTravelLink
+      summary: Mint a tracked subscription link
+      description: Creates a quoting-stage subscription with your affiliate reference baked in server-side,
+        and returns the URL that resumes it. The reference lives on the subscription rather than in a
+        query string, so attribution survives a copy-paste through a messaging app, an email client and
+        a browser redirect, and cannot be forged.
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+          maxLength: 128
+        description: Replaying the same key returns the first link created for it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkRequest'
+      responses:
+        '201':
+          description: Tracked link created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+  /api/postback/conversion:
+    post:
+      tags:
+      - Conversion
+      operationId: postConversion
+      summary: Report a conversion
+      description: Signed server-to-server postback that reports a sale against a tracked link. The short
+        code is re-resolved to a real tracked link and the partner code is checked before any commission
+        is recorded.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Conversion accepted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    AtlasKeyId:
+      type: apiKey
+      in: header
+      name: x-atlas-key-id
+      description: Your key id, from partners.api_clients.
+    AtlasTimestamp:
+      type: apiKey
+      in: header
+      name: x-atlas-timestamp
+      description: Unix seconds. Rejected beyond a 5 minute replay window.
+    AtlasSignature:
+      type: apiKey
+      in: header
+      name: x-atlas-signature
+      description: v2=<hex HMAC-SHA256 of `${ts}.${METHOD}.${pathname}.${rawBody}`>.
+  responses:
+    BadRequest:
+      description: Malformed request.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing, expired or invalid signature.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: The key does not carry the required scope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    QuotaExceeded:
+      description: Daily quota exhausted; resets at the next UTC midnight.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          examples:
+          - UNAUTHORIZED
+          - BAD_LANGUAGE
+          - NO_TRAVELLERS
+          - TOO_MANY_TRAVELLERS
+          - QUOTA_EXCEEDED
+      required:
+      - error
+    Trip:
+      type: object
+      required:
+      - intent
+      - startDate
+      - endDate
+      - countryResidence
+      - arrivalCountries
+      - travellers
+      properties:
+        intent:
+          type: string
+          description: Trip type.
+          enum:
+          - forTourism
+          - schengenArea
+          - annual
+          - studyInternship
+          - whv
+          - cruise
+          - digitalNomad
+          - expat
+          - groupTravel
+          - rentalStay
+          - mountainTrip
+          - backToHome
+          - humanitarianAuPair
+          - toWork
+          - cancellation
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        countryResidence:
+          type: string
+          description: ISO 3166-1 alpha-2.
+          pattern: ^[A-Z]{2}$
+        arrivalCountries:
+          type: array
+          description: ISO 3166-1 alpha-2, up to 20 destinations.
+          maxItems: 20
+          items:
+            type: string
+            pattern: ^[A-Z]{2}$
+        travellers:
+          type: array
+          description: One entry per traveller, up to 10.
+          minItems: 1
+          maxItems: 10
+          items:
+            type: object
+            required:
+            - age
+            properties:
+              age:
+                type: integer
+                minimum: 0
+                maximum: 120
+        tripPrice:
+          type: number
+          minimum: 0
+          description: Insured trip cost. Required when shouldCoverCancellation is true.
+        currency:
+          type: string
+          description: ISO 4217. Applies to tripPrice and studiesAmount.
+          pattern: ^[A-Z]{3}$
+        shouldCoverCancellation:
+          type: boolean
+          default: false
+        shouldCoverExtremeSports:
+          type: boolean
+          default: false
+        isAnnual:
+          type: boolean
+          default: false
+          description: Forced true by the annual and expat trip types.
+    QuoteRequest:
+      type: object
+      required:
+      - trip
+      properties:
+        trip:
+          $ref: '#/components/schemas/Trip'
+        language:
+          type: string
+          default: en
+          description: Funnel language.
+          enum:
+          - bg
+          - cs
+          - da
+          - de
+          - el
+          - en
+          - es
+          - et
+          - fi
+          - fr
+          - hr
+          - hu
+          - is
+          - it
+          - lt
+          - lv
+          - mt
+          - nl
+          - 'no'
+          - pl
+          - pt
+          - ro
+          - sk
+          - sl
+          - sv
+          - tr
+    Offer:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type:
+          - string
+          - 'null'
+        plan:
+          type:
+          - string
+          - 'null'
+        insurer:
+          type: object
+          properties:
+            name:
+              type:
+              - string
+              - 'null'
+            logoUrl:
+              type:
+              - string
+              - 'null'
+              format: uri
+        price:
+          type: object
+          properties:
+            amount:
+              type: number
+            amountInCents:
+              type: integer
+            currency:
+              type: string
+            isStartingPrice:
+              type: boolean
+              description: true = a from price; the exact premium is set in the funnel.
+            period:
+              type:
+              - string
+              - 'null'
+        guaranteeCurrency:
+          type: string
+          description: Currency the guarantee ceilings are expressed in.
+        guarantees:
+          type: object
+          description: Keyed by guarantee slug (see GET /api/v1/travel/meta).
+          additionalProperties:
+            type: object
+            properties:
+              state:
+                type: string
+                enum:
+                - value
+                - included
+                - actual_costs
+                - per_day
+                - return_ticket
+                - trip_price
+                - studies_amount
+                - not_available
+              value:
+                type:
+                - number
+                - 'null'
+        highlights:
+          type: object
+          properties:
+            included:
+              type: array
+              items:
+                type: string
+            excluded:
+              type: array
+              items:
+                type: string
+        documents:
+          type: object
+          properties:
+            cgvUrl:
+              type:
+              - string
+              - 'null'
+              format: uri
+            ipidUrl:
+              type:
+              - string
+              - 'null'
+              format: uri
+        position:
+          type: integer
+          description: Rank by premium, cheapest first.
+    QuoteResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        mode:
+          type: string
+          enum:
+          - sandbox
+          - live
+        offers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Offer'
+        unpricedCount:
+          type: integer
+          description: Catalogue offers that could not be priced for this trip.
+        nearMissCount:
+          type: integer
+          description: Offers that would match if a filter were relaxed.
+        trip:
+          $ref: '#/components/schemas/Trip'
+        quote:
+          type: object
+          properties:
+            mode:
+              type: string
+            days:
+              type: integer
+            travellers:
+              type: integer
+            expiresAt:
+              type: string
+              format: date-time
+        meta:
+          type: object
+          properties:
+            apiVersion:
+              type: string
+            language:
+              type: string
+    LinkRequest:
+      type: object
+      required:
+      - trip
+      properties:
+        trip:
+          $ref: '#/components/schemas/Trip'
+        language:
+          type: string
+          default: en
+        linkCode:
+          type: string
+          description: One of your own tracked links, to split reporting by channel.
+    LinkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        mode:
+          type: string
+          enum:
+          - sandbox
+          - live
+        subscriptionId:
+          type: string
+        url:
+          type: string
+          format: uri
+          description: 'Hand this to the traveller: it resumes the quote with attribution attached.'
+        ref:
+          type: string
+          description: The affiliate reference baked into the subscription.
+        expiresAt:
+          type: string
+          format: date-time
+        meta:
+          type: object
+    MetaResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        apiVersion:
+          type: string
+        key:
+          type: object
+          properties:
+            keyId:
+              type: string
+            mode:
+              type: string
+              enum:
+              - sandbox
+              - live
+            scopes:
+              type: array
+              items:
+                type: string
+            quota:
+              type: object
+            lifetime:
+              type: object
+        trip:
+          type: object
+          properties:
+            intents:
+              type: array
+              items:
+                type: string
+            languages:
+              type: array
+              items:
+                type: string
+            maxTravellers:
+              type: integer
+            maxDestinations:
+              type: integer
+            notes:
+              type: array
+              items:
+                type: string
+        guarantees:
+          type: array
+          items:
+            type: object
+            properties:
+              slug:
+                type: string
+              label:
+                type: string
+              group:
+                type: string
+        states:
+          type: array
+          items:
+            type: object
+            properties:
+              state:
+                type: string
+              meaning:
+                type: string
