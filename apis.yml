@@ -26,19 +26,16 @@ tags_raw:
 - pricing
 - travel
 apis:
-- aid: hellosafe:hellosafe-travel-insurance-api
-  name: HelloSafe Travel Insurance API
-  description: >-
-    Multi-insurer travel-insurance pricing, tracked attributed links and a pre-sale coverage
-    assessment. 4 operations, 8 schemas, HMAC-signed requests.
+- aid: hellosafe:hellosafe-conversion-api
+  name: HelloSafe Conversion API
+  description: Server-to-server conversion postback.
   humanURL: https://atlas.hellosafe.com/platform/api
   baseURL: https://atlas.hellosafe.com/api/v1/travel
   tags:
-  - Insurance
-  - Travel
+  - Conversion
   properties:
   - type: OpenAPI
-    url: openapi/hellosafe-travel-insurance-api-openapi.yml
+    url: openapi/hellosafe-conversion-api-openapi.yml
   - type: APIReference
     url: https://atlas.hellosafe.com/openapi.json
   - type: Documentation
@@ -51,18 +48,54 @@ apis:
     url: https://atlas.hellosafe.com/legal/terms
   - type: PrivacyPolicy
     url: https://atlas.hellosafe.com/legal/privacy
-- aid: hellosafe:hellosafe-coach-api
-  name: HelloSafe Coach API
-  description: >-
-    Second Atlas surface, declared by the provider alongside the travel API and sharing the same
-    OpenAPI document.
-  humanURL: https://atlas.hellosafe.com/platform/coach
-  baseURL: https://atlas.hellosafe.com/api/v1/coach
+  - type: Documentation
+    url: https://atlas.hellosafe.com/platform/coach
+- aid: hellosafe:hellosafe-links-api
+  name: HelloSafe Links API
+  description: Turn a chosen offer into a tracked, attributed subscription link.
+  humanURL: https://atlas.hellosafe.com/platform/api
+  baseURL: https://atlas.hellosafe.com/api/v1/travel
   tags:
-  - Insurance
+  - Links
   properties:
   - type: OpenAPI
-    url: openapi/hellosafe-travel-insurance-api-openapi.yml
+    url: openapi/hellosafe-links-api-openapi.yml
+  - type: APIReference
+    url: https://atlas.hellosafe.com/openapi.json
+  - type: Documentation
+    url: https://atlas.hellosafe.com/platform/api
+  - type: Onboarding
+    url: well-known/hellosafe-api-onboarding.json
+  - type: SignUp
+    url: https://atlas.hellosafe.com/signup
+  - type: TermsOfService
+    url: https://atlas.hellosafe.com/legal/terms
+  - type: PrivacyPolicy
+    url: https://atlas.hellosafe.com/legal/privacy
+  - type: Documentation
+    url: https://atlas.hellosafe.com/platform/coach
+- aid: hellosafe:hellosafe-quotes-api
+  name: HelloSafe Quotes API
+  description: Price a trip and read the catalogue vocabulary.
+  humanURL: https://atlas.hellosafe.com/platform/api
+  baseURL: https://atlas.hellosafe.com/api/v1/travel
+  tags:
+  - Quotes
+  properties:
+  - type: OpenAPI
+    url: openapi/hellosafe-quotes-api-openapi.yml
+  - type: APIReference
+    url: https://atlas.hellosafe.com/openapi.json
+  - type: Documentation
+    url: https://atlas.hellosafe.com/platform/api
+  - type: Onboarding
+    url: well-known/hellosafe-api-onboarding.json
+  - type: SignUp
+    url: https://atlas.hellosafe.com/signup
+  - type: TermsOfService
+    url: https://atlas.hellosafe.com/legal/terms
+  - type: PrivacyPolicy
+    url: https://atlas.hellosafe.com/legal/privacy
   - type: Documentation
     url: https://atlas.hellosafe.com/platform/coach
 common:
