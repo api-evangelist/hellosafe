@@ -111,6 +111,9 @@ apis:
   - type: Documentation
     url: https://atlas.hellosafe.com/platform/coach
 common:
+- type: CapabilityMap
+  url: capabilities/hellosafe-capability-edges.yml
+  name: HelloSafe Business Capability Map
 - type: APIsJSON
   url: well-known/hellosafe-provider-apis.json
 - type: Onboarding

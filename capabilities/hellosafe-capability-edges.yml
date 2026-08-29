@@ -1,0 +1,37 @@
+slug: hellosafe
+provider: HelloSafe
+generated_by: planning/capability-mapping/scripts/classify_capabilities.py
+model: claude-opus-5
+frame:
+- Insurance
+min_confidence: 0.7
+capability_model:
+  source: https://github.com/vincentmakes/turbo-ea-capabilities
+  license: CC-BY-4.0
+  attribution: Turbo EA Capabilities by Vincent Verdet — Turbo EA, https://github.com/vincentmakes/turbo-ea-capabilities,
+    CC BY 4.0
+  notice: NOTICE
+edge_count: 2
+edges:
+- tag: Quotes
+  spec_file: hellosafe-quotes-api-openapi.yml
+  capability_id: BC-2110.60
+  capability_id_l1: BC-2110
+  capability_name: Quote & Submission Management
+  confidence: 0.85
+  evidence: POST /api/v1/travel/quotes  createTravelQuote  Price a trip; "prices a trip against a multi-insurer
+    travel insurance catalogue and returns comparable offers with their guarantees"
+  reason: Operations take trip data and return comparable multi-insurer offers — quote generation and
+    comparison in a distribution flow, matching Quote & Submission Management. Schemas Trip/Offer/QuoteRequest/QuoteResponse
+    confirm.
+- tag: Links
+  spec_file: hellosafe-links-api-openapi.yml
+  capability_id: BC-2110
+  capability_id_l1: BC-2110
+  capability_name: Insurance Distribution Management
+  confidence: 0.75
+  evidence: POST /api/v1/travel/links  createTravelLink  Mint a tracked subscription link — "mints a tracked
+    subscription link so the sale is attributed and paid as commission"
+  reason: The operation produces an attributed distribution link that converts a priced offer into a subscription
+    and drives commission payment — insurance distribution channel mechanics. Sub-capability is ambiguous
+    between conversion tracking (quote-to-bind) and commission attribution, so only the L1 is asserted.
