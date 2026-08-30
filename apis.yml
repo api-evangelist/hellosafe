@@ -26,12 +26,10 @@ created: '2026-08-25'
 modified: '2026-08-25'
 specificationVersion: '0.23'
 tags:
-- Insurance
-- Travel
-- Insurtech
+- travel insurance
+- insurance distribution
 - Pricing
-- Affiliate
-- Distribution
+- travel
 tags_raw:
 - travel insurance
 - insurance distribution
