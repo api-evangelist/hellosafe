@@ -1,0 +1,253 @@
+openapi: 3.2.0
+info:
+  title: HelloSafe Travel Insurance Links API
+  version: 1.0.0
+  summary: Price and sell travel insurance from any travel product.
+  description: 'A REST API that prices a trip against a multi-insurer travel insurance catalogue and returns comparable offers with their guarantees, then mints a tracked subscription link so the sale is attributed and paid as commission. Built for travel agencies, tour operators, OTAs, booking engines and travel apps that want to add travel insurance without becoming an insurer or holding a distribution licence.
+
+
+    Every key ships with a free sandbox that returns deterministic fixtures in the exact live response shape, so an integration can be built and tested end to end before a single insurer is called.
+
+
+    **Authentication** is a per-caller HMAC-SHA256 handshake, server to server. Send three headers:
+
+
+    - `x-atlas-key-id`: your key id
+
+    - `x-atlas-timestamp`: unix seconds, rejected beyond a 5 minute window
+
+    - `x-atlas-signature`: `v2=` + hex HMAC-SHA256 of `${timestamp}.${METHOD}.${pathname}.${rawBody}`, keyed with your signing secret
+
+
+    The signature covers the raw request body byte for byte. There is no CORS header on these responses: the signing secret must never reach a browser.'
+  termsOfService: https://atlas.hellosafe.com/legal/terms
+  contact:
+    name: HelloSafe Atlas
+    url: https://atlas.hellosafe.com/platform/api
+    email: atlas@hellosafe.com
+  x-logo:
+    url: https://atlas.hellosafe.com/hellosafe-logo.svg
+  license:
+    name: Proprietary
+    url: https://atlas.hellosafe.com/legal/terms
+servers:
+- url: https://atlas.hellosafe.com
+  description: Production. Sandbox versus live is decided by your key, not by the URL.
+security:
+- AtlasKeyId: []
+  AtlasTimestamp: []
+  AtlasSignature: []
+tags:
+- name: Links
+  description: Turn a chosen offer into a tracked, attributed subscription link.
+paths:
+  /api/v1/travel/links:
+    post:
+      tags:
+      - Links
+      operationId: createTravelLink
+      summary: Mint a tracked subscription link
+      description: Creates a quoting-stage subscription with your affiliate reference baked in server-side, and returns the URL that resumes it. The reference lives on the subscription rather than in a query string, so attribution survives a copy-paste through a messaging app, an email client and a browser redirect, and cannot be forged.
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+          maxLength: 128
+        description: Replaying the same key returns the first link created for it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkRequest'
+      responses:
+        '201':
+          description: Tracked link created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+components:
+  responses:
+    Forbidden:
+      description: The key does not carry the required scope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing, expired or invalid signature.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    QuotaExceeded:
+      description: Daily quota exhausted; resets at the next UTC midnight.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Malformed request.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          examples:
+          - UNAUTHORIZED
+          - BAD_LANGUAGE
+          - NO_TRAVELLERS
+          - TOO_MANY_TRAVELLERS
+          - QUOTA_EXCEEDED
+      required:
+      - error
+    Trip:
+      type: object
+      required:
+      - intent
+      - startDate
+      - endDate
+      - countryResidence
+      - arrivalCountries
+      - travellers
+      properties:
+        intent:
+          type: string
+          description: Trip type.
+          enum:
+          - forTourism
+          - schengenArea
+          - annual
+          - studyInternship
+          - whv
+          - cruise
+          - digitalNomad
+          - expat
+          - groupTravel
+          - rentalStay
+          - mountainTrip
+          - backToHome
+          - humanitarianAuPair
+          - toWork
+          - cancellation
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        countryResidence:
+          type: string
+          description: ISO 3166-1 alpha-2.
+          pattern: ^[A-Z]{2}$
+        arrivalCountries:
+          type: array
+          description: ISO 3166-1 alpha-2, up to 20 destinations.
+          maxItems: 20
+          items:
+            type: string
+            pattern: ^[A-Z]{2}$
+        travellers:
+          type: array
+          description: One entry per traveller, up to 10.
+          minItems: 1
+          maxItems: 10
+          items:
+            type: object
+            required:
+            - age
+            properties:
+              age:
+                type: integer
+                minimum: 0
+                maximum: 120
+        tripPrice:
+          type: number
+          minimum: 0
+          description: Insured trip cost. Required when shouldCoverCancellation is true.
+        currency:
+          type: string
+          description: ISO 4217. Applies to tripPrice and studiesAmount.
+          pattern: ^[A-Z]{3}$
+        shouldCoverCancellation:
+          type: boolean
+          default: false
+        shouldCoverExtremeSports:
+          type: boolean
+          default: false
+        isAnnual:
+          type: boolean
+          default: false
+          description: Forced true by the annual and expat trip types.
+    LinkRequest:
+      type: object
+      required:
+      - trip
+      properties:
+        trip:
+          $ref: '#/components/schemas/Trip'
+        language:
+          type: string
+          default: en
+        linkCode:
+          type: string
+          description: One of your own tracked links, to split reporting by channel.
+    LinkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        mode:
+          type: string
+          enum:
+          - sandbox
+          - live
+        subscriptionId:
+          type: string
+        url:
+          type: string
+          format: uri
+          description: 'Hand this to the traveller: it resumes the quote with attribution attached.'
+        ref:
+          type: string
+          description: The affiliate reference baked into the subscription.
+        expiresAt:
+          type: string
+          format: date-time
+        meta:
+          type: object
+  securitySchemes:
+    AtlasKeyId:
+      type: apiKey
+      in: header
+      name: x-atlas-key-id
+      description: Your key id, from partners.api_clients.
+    AtlasTimestamp:
+      type: apiKey
+      in: header
+      name: x-atlas-timestamp
+      description: Unix seconds. Rejected beyond a 5 minute replay window.
+    AtlasSignature:
+      type: apiKey
+      in: header
+      name: x-atlas-signature
+      description: v2=<hex HMAC-SHA256 of `${ts}.${METHOD}.${pathname}.${rawBody}`>.
+externalDocs:
+  description: Travel insurance API documentation
+  url: https://atlas.hellosafe.com/platform/api
