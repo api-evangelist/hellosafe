@@ -1,13 +1,6 @@
 aid: hellosafe
 name: HelloSafe
-description: >-
-  HelloSafe distributes travel insurance through APIs, under the Atlas platform at
-  atlas.hellosafe.com. The Travel Insurance API returns multi-insurer pricing, tracked attributed
-  links and a pre-sale coverage assessment, aimed at travel agencies, tour operators, OTAs,
-  booking engines and travel apps. A second surface, the Coach API, sits alongside it. The
-  contract is an OpenAPI 3.1 document of 4 operations and 8 schemas, and requests are
-  HMAC-SIGNED rather than bearing a plain API key — three headers, AtlasKeyId, AtlasTimestamp and
-  AtlasSignature, which is materially stronger than what most providers this size ship.
+description: HelloSafe distributes travel insurance through APIs, under the Atlas platform at atlas.hellosafe.com. The Travel Insurance API returns multi-insurer pricing, tracked attributed links and a pre-sale coverage assessment, aimed at travel agencies, tour operators, OTAs, booking engines and travel apps. A second surface, the Coach API, sits alongside it. The contract is an OpenAPI 3.1 document of 4 operations and 8 schemas, and requests are HMAC-SIGNED rather than bearing a plain API key — three headers, AtlasKeyId, AtlasTimestamp and AtlasSignature, which is materially stronger than what most providers this size ship.
 type: Index
 url: https://raw.githubusercontent.com/api-evangelist/hellosafe/refs/heads/main/apis.yml
 deliveryModel:
@@ -108,6 +101,49 @@ apis:
     url: https://atlas.hellosafe.com/legal/privacy
   - type: Documentation
     url: https://atlas.hellosafe.com/platform/coach
+- name: HelloSafe Travel Insurance API
+  description: REST API for travel-insurance reference data, quoting, tracked link minting, and signed conversion postbacks. The conversion postback and tracked deep links are live today; quote-and-bind travel endpoints are in private beta/early access. Uses per-caller HMAC-SHA256 server-to-server authentication.
+  humanURL: https://atlas.hellosafe.com/platform/api
+  baseURL: https://atlas.hellosafe.com
+  tags:
+  - Travel Insurance
+  - Insurance
+  - Insurtech
+  - Embedded Insurance
+  - Travel
+  - Affiliates
+  - Attribution
+  - Quotes
+  - Comparison
+  - Conversion Tracking
+  - White Label
+  - Tour Operators
+  - Travel Agencies
+  - OTAs
+  - Fintech
+  tags_raw:
+  - Travel Insurance
+  - Insurance
+  - Insurtech
+  - Embedded Insurance
+  - Travel
+  - Affiliate
+  - Attribution
+  - Quotes
+  - Comparison
+  - Conversion Tracking
+  - White-Label
+  - Tour Operators
+  - Travel Agencies
+  - OTAs
+  - Fintech
+  properties:
+  - type: OpenAPI
+    url: https://atlas.hellosafe.com/openapi.json
+  - type: Documentation
+    url: https://atlas.hellosafe.com/platform/api
+  - type: LLMsTxt
+    url: https://atlas.hellosafe.com/llms.txt
 common:
 - type: CapabilityMap
   url: capabilities/hellosafe-capability-edges.yml
@@ -130,23 +166,4 @@ x-provenance:
   added: '2026-08-25'
   method: searched
   source: https://atlas.hellosafe.com/.well-known/apis.json
-  note: >-
-    Submitted via apis.io/add on 2026-08-25 and auto-published by the gate at rating 71
-    (exemplar). The submitted APIs.json URL is CORRECT — it points at
-    /.well-known/apis.json, which returns application/json against a control path that returns a
-    real 404. Third submission in a week whose declared pointer actually resolved, after Southend
-    and YouWork Agent.
-    Every declared property was fetched: the OpenAPI (3.1, 4 paths, 8 schemas), a machine-readable
-    api-onboarding document carrying aod, provider, maturity, account, registration,
-    authentication, credentials and scopes, and an llms.txt. Only /platform/api 308-redirects
-    rather than serving directly, which is why the record points at the URL and not a saved copy.
-    WORTH NOTING ON AUTHENTICATION. This API is not bearer-token or plain-API-key. It uses three
-    headers — AtlasKeyId, AtlasTimestamp and AtlasSignature — i.e. HMAC request signing with a
-    timestamp, which resists replay in a way a static key does not. Very few providers at this
-    size ship that, and it is the kind of thing the rubric should be crediting.
-    SLUGGED FROM THE COMPANY, NOT THE SUBDOMAIN. The submission is "HelloSafe Atlas" and everything
-    is served from atlas.hellosafe.com, but the company is HelloSafe on hellosafe.com, which
-    resolves and returns 200. Atlas is the API platform, and the two APIs sit inside the company
-    record — the same shape as YouWork Agent / Scopewise.
-    Their apis.json declares specificationVersion 0.18, which is several revisions behind current.
-    Recorded, not corrected: it is their document.
+  note: 'Submitted via apis.io/add on 2026-08-25 and auto-published by the gate at rating 71 (exemplar). The submitted APIs.json URL is CORRECT — it points at /.well-known/apis.json, which returns application/json against a control path that returns a real 404. Third submission in a week whose declared pointer actually resolved, after Southend and YouWork Agent. Every declared property was fetched: the OpenAPI (3.1, 4 paths, 8 schemas), a machine-readable api-onboarding document carrying aod, provider, maturity, account, registration, authentication, credentials and scopes, and an llms.txt. Only /platform/api 308-redirects rather than serving directly, which is why the record points at the URL and not a saved copy. WORTH NOTING ON AUTHENTICATION. This API is not bearer-token or plain-API-key. It uses three headers — AtlasKeyId, AtlasTimestamp and AtlasSignature — i.e. HMAC request signing with a timestamp, which resists replay in a way a static key does not. Very few providers at this size ship that, and it is the kind of thing the rubric should be crediting. SLUGGED FROM THE COMPANY, NOT THE SUBDOMAIN. The submission is "HelloSafe Atlas" and everything is served from atlas.hellosafe.com, but the company is HelloSafe on hellosafe.com, which resolves and returns 200. Atlas is the API platform, and the two APIs sit inside the company record — the same shape as YouWork Agent / Scopewise. Their apis.json declares specificationVersion 0.18, which is several revisions behind current. Recorded, not corrected: it is their document.'
