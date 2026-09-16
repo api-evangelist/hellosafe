@@ -101,49 +101,6 @@ apis:
     url: https://atlas.hellosafe.com/legal/privacy
   - type: Documentation
     url: https://atlas.hellosafe.com/platform/coach
-- name: HelloSafe Travel Insurance API
-  description: REST API for travel-insurance reference data, quoting, tracked link minting, and signed conversion postbacks. The conversion postback and tracked deep links are live today; quote-and-bind travel endpoints are in private beta/early access. Uses per-caller HMAC-SHA256 server-to-server authentication.
-  humanURL: https://atlas.hellosafe.com/platform/api
-  baseURL: https://atlas.hellosafe.com
-  tags:
-  - Travel Insurance
-  - Insurance
-  - Insurtech
-  - Embedded Insurance
-  - Travel
-  - Affiliates
-  - Attribution
-  - Quotes
-  - Comparison
-  - Conversion Tracking
-  - White Label
-  - Tour Operators
-  - Travel Agencies
-  - OTAs
-  - Fintech
-  tags_raw:
-  - Travel Insurance
-  - Insurance
-  - Insurtech
-  - Embedded Insurance
-  - Travel
-  - Affiliate
-  - Attribution
-  - Quotes
-  - Comparison
-  - Conversion Tracking
-  - White-Label
-  - Tour Operators
-  - Travel Agencies
-  - OTAs
-  - Fintech
-  properties:
-  - type: OpenAPI
-    url: https://atlas.hellosafe.com/openapi.json
-  - type: Documentation
-    url: https://atlas.hellosafe.com/platform/api
-  - type: LLMsTxt
-    url: https://atlas.hellosafe.com/llms.txt
 common:
 - type: CapabilityMap
   url: capabilities/hellosafe-capability-edges.yml
