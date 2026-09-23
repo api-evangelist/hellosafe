@@ -3,23 +3,7 @@ info:
   title: HelloSafe Travel Insurance Links API
   version: 1.0.0
   summary: Price and sell travel insurance from any travel product.
-  description: 'A REST API that prices a trip against a multi-insurer travel insurance catalogue and returns comparable offers with their guarantees, then mints a tracked subscription link so the sale is attributed and paid as commission. Built for travel agencies, tour operators, OTAs, booking engines and travel apps that want to add travel insurance without becoming an insurer or holding a distribution licence.
-
-
-    Every key ships with a free sandbox that returns deterministic fixtures in the exact live response shape, so an integration can be built and tested end to end before a single insurer is called.
-
-
-    **Authentication** is a per-caller HMAC-SHA256 handshake, server to server. Send three headers:
-
-
-    - `x-atlas-key-id`: your key id
-
-    - `x-atlas-timestamp`: unix seconds, rejected beyond a 5 minute window
-
-    - `x-atlas-signature`: `v2=` + hex HMAC-SHA256 of `${timestamp}.${METHOD}.${pathname}.${rawBody}`, keyed with your signing secret
-
-
-    The signature covers the raw request body byte for byte. There is no CORS header on these responses: the signing secret must never reach a browser.'
+  description: A REST API that prices a trip against a multi-insurer travel insurance catalogue and returns comparable offers with their guarantees, then mints a tracked subscription link so the sale is attributed and paid as commission.
   termsOfService: https://atlas.hellosafe.com/legal/terms
   contact:
     name: HelloSafe Atlas
@@ -78,45 +62,7 @@ paths:
         '429':
           $ref: '#/components/responses/QuotaExceeded'
 components:
-  responses:
-    Forbidden:
-      description: The key does not carry the required scope.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Missing, expired or invalid signature.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    QuotaExceeded:
-      description: Daily quota exhausted; resets at the next UTC midnight.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    BadRequest:
-      description: Malformed request.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
   schemas:
-    Error:
-      type: object
-      properties:
-        error:
-          type: string
-          examples:
-          - UNAUTHORIZED
-          - BAD_LANGUAGE
-          - NO_TRAVELLERS
-          - TOO_MANY_TRAVELLERS
-          - QUOTA_EXCEEDED
-      required:
-      - error
     Trip:
       type: object
       required:
@@ -195,19 +141,6 @@ components:
           type: boolean
           default: false
           description: Forced true by the annual and expat trip types.
-    LinkRequest:
-      type: object
-      required:
-      - trip
-      properties:
-        trip:
-          $ref: '#/components/schemas/Trip'
-        language:
-          type: string
-          default: en
-        linkCode:
-          type: string
-          description: One of your own tracked links, to split reporting by channel.
     LinkResponse:
       type: object
       properties:
@@ -232,6 +165,57 @@ components:
           format: date-time
         meta:
           type: object
+    LinkRequest:
+      type: object
+      required:
+      - trip
+      properties:
+        trip:
+          $ref: '#/components/schemas/Trip'
+        language:
+          type: string
+          default: en
+        linkCode:
+          type: string
+          description: One of your own tracked links, to split reporting by channel.
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          examples:
+          - UNAUTHORIZED
+          - BAD_LANGUAGE
+          - NO_TRAVELLERS
+          - TOO_MANY_TRAVELLERS
+          - QUOTA_EXCEEDED
+      required:
+      - error
+  responses:
+    Forbidden:
+      description: The key does not carry the required scope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    QuotaExceeded:
+      description: Daily quota exhausted; resets at the next UTC midnight.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing, expired or invalid signature.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Malformed request.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   securitySchemes:
     AtlasKeyId:
       type: apiKey
