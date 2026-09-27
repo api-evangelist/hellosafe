@@ -96,6 +96,19 @@ paths:
           description: Upstream pricing timed out.
 components:
   schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          examples:
+          - UNAUTHORIZED
+          - BAD_LANGUAGE
+          - NO_TRAVELLERS
+          - TOO_MANY_TRAVELLERS
+          - QUOTA_EXCEEDED
+      required:
+      - error
     Trip:
       type: object
       required:
@@ -174,47 +187,108 @@ components:
           type: boolean
           default: false
           description: Forced true by the annual and expat trip types.
-    QuoteResponse:
+    MetaResponse:
       type: object
       properties:
         ok:
           type: boolean
-        mode:
+        apiVersion:
           type: string
-          enum:
-          - sandbox
-          - live
-        offers:
-          type: array
-          items:
-            $ref: '#/components/schemas/Offer'
-        unpricedCount:
-          type: integer
-          description: Catalogue offers that could not be priced for this trip.
-        nearMissCount:
-          type: integer
-          description: Offers that would match if a filter were relaxed.
-        trip:
-          $ref: '#/components/schemas/Trip'
-        quote:
+        key:
           type: object
           properties:
+            keyId:
+              type: string
             mode:
               type: string
-            days:
-              type: integer
-            travellers:
-              type: integer
-            expiresAt:
-              type: string
-              format: date-time
-        meta:
+              enum:
+              - sandbox
+              - live
+            scopes:
+              type: array
+              items:
+                type: string
+            quota:
+              type: object
+            lifetime:
+              type: object
+        trip:
           type: object
           properties:
-            apiVersion:
-              type: string
-            language:
-              type: string
+            intents:
+              type: array
+              items:
+                type: string
+            languages:
+              type: array
+              items:
+                type: string
+            maxTravellers:
+              type: integer
+            maxDestinations:
+              type: integer
+            notes:
+              type: array
+              items:
+                type: string
+        guarantees:
+          type: array
+          items:
+            type: object
+            properties:
+              slug:
+                type: string
+              label:
+                type: string
+              group:
+                type: string
+        states:
+          type: array
+          items:
+            type: object
+            properties:
+              state:
+                type: string
+              meaning:
+                type: string
+    QuoteRequest:
+      type: object
+      required:
+      - trip
+      properties:
+        trip:
+          $ref: '#/components/schemas/Trip'
+        language:
+          type: string
+          default: en
+          description: Funnel language.
+          enum:
+          - bg
+          - cs
+          - da
+          - de
+          - el
+          - en
+          - es
+          - et
+          - fi
+          - fr
+          - hr
+          - hu
+          - is
+          - it
+          - lt
+          - lv
+          - mt
+          - nl
+          - 'no'
+          - pl
+          - pt
+          - ro
+          - sk
+          - sl
+          - sv
+          - tr
     Offer:
       type: object
       properties:
@@ -307,121 +381,47 @@ components:
         position:
           type: integer
           description: Rank by premium, cheapest first.
-    QuoteRequest:
-      type: object
-      required:
-      - trip
-      properties:
-        trip:
-          $ref: '#/components/schemas/Trip'
-        language:
-          type: string
-          default: en
-          description: Funnel language.
-          enum:
-          - bg
-          - cs
-          - da
-          - de
-          - el
-          - en
-          - es
-          - et
-          - fi
-          - fr
-          - hr
-          - hu
-          - is
-          - it
-          - lt
-          - lv
-          - mt
-          - nl
-          - 'no'
-          - pl
-          - pt
-          - ro
-          - sk
-          - sl
-          - sv
-          - tr
-    MetaResponse:
+    QuoteResponse:
       type: object
       properties:
         ok:
           type: boolean
-        apiVersion:
+        mode:
           type: string
-        key:
+          enum:
+          - sandbox
+          - live
+        offers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Offer'
+        unpricedCount:
+          type: integer
+          description: Catalogue offers that could not be priced for this trip.
+        nearMissCount:
+          type: integer
+          description: Offers that would match if a filter were relaxed.
+        trip:
+          $ref: '#/components/schemas/Trip'
+        quote:
           type: object
           properties:
-            keyId:
-              type: string
             mode:
               type: string
-              enum:
-              - sandbox
-              - live
-            scopes:
-              type: array
-              items:
-                type: string
-            quota:
-              type: object
-            lifetime:
-              type: object
-        trip:
+            days:
+              type: integer
+            travellers:
+              type: integer
+            expiresAt:
+              type: string
+              format: date-time
+        meta:
           type: object
           properties:
-            intents:
-              type: array
-              items:
-                type: string
-            languages:
-              type: array
-              items:
-                type: string
-            maxTravellers:
-              type: integer
-            maxDestinations:
-              type: integer
-            notes:
-              type: array
-              items:
-                type: string
-        guarantees:
-          type: array
-          items:
-            type: object
-            properties:
-              slug:
-                type: string
-              label:
-                type: string
-              group:
-                type: string
-        states:
-          type: array
-          items:
-            type: object
-            properties:
-              state:
-                type: string
-              meaning:
-                type: string
-    Error:
-      type: object
-      properties:
-        error:
-          type: string
-          examples:
-          - UNAUTHORIZED
-          - BAD_LANGUAGE
-          - NO_TRAVELLERS
-          - TOO_MANY_TRAVELLERS
-          - QUOTA_EXCEEDED
-      required:
-      - error
+            apiVersion:
+              type: string
+            language:
+              type: string
   responses:
     Forbidden:
       description: The key does not carry the required scope.

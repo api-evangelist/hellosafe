@@ -63,6 +63,56 @@ paths:
           $ref: '#/components/responses/QuotaExceeded'
 components:
   schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          examples:
+          - UNAUTHORIZED
+          - BAD_LANGUAGE
+          - NO_TRAVELLERS
+          - TOO_MANY_TRAVELLERS
+          - QUOTA_EXCEEDED
+      required:
+      - error
+    LinkRequest:
+      type: object
+      required:
+      - trip
+      properties:
+        trip:
+          $ref: '#/components/schemas/Trip'
+        language:
+          type: string
+          default: en
+        linkCode:
+          type: string
+          description: One of your own tracked links, to split reporting by channel.
+    LinkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        mode:
+          type: string
+          enum:
+          - sandbox
+          - live
+        subscriptionId:
+          type: string
+        url:
+          type: string
+          format: uri
+          description: 'Hand this to the traveller: it resumes the quote with attribution attached.'
+        ref:
+          type: string
+          description: The affiliate reference baked into the subscription.
+        expiresAt:
+          type: string
+          format: date-time
+        meta:
+          type: object
     Trip:
       type: object
       required:
@@ -141,56 +191,6 @@ components:
           type: boolean
           default: false
           description: Forced true by the annual and expat trip types.
-    LinkResponse:
-      type: object
-      properties:
-        ok:
-          type: boolean
-        mode:
-          type: string
-          enum:
-          - sandbox
-          - live
-        subscriptionId:
-          type: string
-        url:
-          type: string
-          format: uri
-          description: 'Hand this to the traveller: it resumes the quote with attribution attached.'
-        ref:
-          type: string
-          description: The affiliate reference baked into the subscription.
-        expiresAt:
-          type: string
-          format: date-time
-        meta:
-          type: object
-    LinkRequest:
-      type: object
-      required:
-      - trip
-      properties:
-        trip:
-          $ref: '#/components/schemas/Trip'
-        language:
-          type: string
-          default: en
-        linkCode:
-          type: string
-          description: One of your own tracked links, to split reporting by channel.
-    Error:
-      type: object
-      properties:
-        error:
-          type: string
-          examples:
-          - UNAUTHORIZED
-          - BAD_LANGUAGE
-          - NO_TRAVELLERS
-          - TOO_MANY_TRAVELLERS
-          - QUOTA_EXCEEDED
-      required:
-      - error
   responses:
     Forbidden:
       description: The key does not carry the required scope.
