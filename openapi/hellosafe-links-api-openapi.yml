@@ -62,45 +62,44 @@ paths:
         '429':
           $ref: '#/components/responses/QuotaExceeded'
 components:
-  responses:
-    QuotaExceeded:
-      description: Daily quota exhausted; resets at the next UTC midnight.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Missing, expired or invalid signature.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    BadRequest:
-      description: Malformed request.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: The key does not carry the required scope.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
   schemas:
-    LinkRequest:
+    LinkResponse:
       type: object
-      required:
-      - trip
       properties:
-        trip:
-          $ref: '#/components/schemas/Trip'
-        language:
+        ok:
+          type: boolean
+        mode:
           type: string
-          default: en
-        linkCode:
+          enum:
+          - sandbox
+          - live
+        subscriptionId:
           type: string
-          description: One of your own tracked links, to split reporting by channel.
+        url:
+          type: string
+          format: uri
+          description: 'Hand this to the traveller: it resumes the quote with attribution attached.'
+        ref:
+          type: string
+          description: The affiliate reference baked into the subscription.
+        expiresAt:
+          type: string
+          format: date-time
+        meta:
+          type: object
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          examples:
+          - UNAUTHORIZED
+          - BAD_LANGUAGE
+          - NO_TRAVELLERS
+          - TOO_MANY_TRAVELLERS
+          - QUOTA_EXCEEDED
+      required:
+      - error
     Trip:
       type: object
       required:
@@ -179,43 +178,44 @@ components:
           type: boolean
           default: false
           description: Forced true by the annual and expat trip types.
-    Error:
+    LinkRequest:
       type: object
-      properties:
-        error:
-          type: string
-          examples:
-          - UNAUTHORIZED
-          - BAD_LANGUAGE
-          - NO_TRAVELLERS
-          - TOO_MANY_TRAVELLERS
-          - QUOTA_EXCEEDED
       required:
-      - error
-    LinkResponse:
-      type: object
+      - trip
       properties:
-        ok:
-          type: boolean
-        mode:
+        trip:
+          $ref: '#/components/schemas/Trip'
+        language:
           type: string
-          enum:
-          - sandbox
-          - live
-        subscriptionId:
+          default: en
+        linkCode:
           type: string
-        url:
-          type: string
-          format: uri
-          description: 'Hand this to the traveller: it resumes the quote with attribution attached.'
-        ref:
-          type: string
-          description: The affiliate reference baked into the subscription.
-        expiresAt:
-          type: string
-          format: date-time
-        meta:
-          type: object
+          description: One of your own tracked links, to split reporting by channel.
+  responses:
+    QuotaExceeded:
+      description: Daily quota exhausted; resets at the next UTC midnight.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: The key does not carry the required scope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing, expired or invalid signature.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Malformed request.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   securitySchemes:
     AtlasKeyId:
       type: apiKey
