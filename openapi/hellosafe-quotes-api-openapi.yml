@@ -96,6 +96,47 @@ paths:
           description: Upstream pricing timed out.
 components:
   schemas:
+    QuoteResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        mode:
+          type: string
+          enum:
+          - sandbox
+          - live
+        offers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Offer'
+        unpricedCount:
+          type: integer
+          description: Catalogue offers that could not be priced for this trip.
+        nearMissCount:
+          type: integer
+          description: Offers that would match if a filter were relaxed.
+        trip:
+          $ref: '#/components/schemas/Trip'
+        quote:
+          type: object
+          properties:
+            mode:
+              type: string
+            days:
+              type: integer
+            travellers:
+              type: integer
+            expiresAt:
+              type: string
+              format: date-time
+        meta:
+          type: object
+          properties:
+            apiVersion:
+              type: string
+            language:
+              type: string
     MetaResponse:
       type: object
       properties:
@@ -160,19 +201,6 @@ components:
                 type: string
               meaning:
                 type: string
-    Error:
-      type: object
-      properties:
-        error:
-          type: string
-          examples:
-          - UNAUTHORIZED
-          - BAD_LANGUAGE
-          - NO_TRAVELLERS
-          - TOO_MANY_TRAVELLERS
-          - QUOTA_EXCEEDED
-      required:
-      - error
     QuoteRequest:
       type: object
       required:
@@ -211,6 +239,97 @@ components:
           - sl
           - sv
           - tr
+    Trip:
+      type: object
+      required:
+      - intent
+      - startDate
+      - endDate
+      - countryResidence
+      - arrivalCountries
+      - travellers
+      properties:
+        intent:
+          type: string
+          description: Trip type.
+          enum:
+          - forTourism
+          - schengenArea
+          - annual
+          - studyInternship
+          - whv
+          - cruise
+          - digitalNomad
+          - expat
+          - groupTravel
+          - rentalStay
+          - mountainTrip
+          - backToHome
+          - humanitarianAuPair
+          - toWork
+          - cancellation
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        countryResidence:
+          type: string
+          description: ISO 3166-1 alpha-2.
+          pattern: ^[A-Z]{2}$
+        arrivalCountries:
+          type: array
+          description: ISO 3166-1 alpha-2, up to 20 destinations.
+          maxItems: 20
+          items:
+            type: string
+            pattern: ^[A-Z]{2}$
+        travellers:
+          type: array
+          description: One entry per traveller, up to 10.
+          minItems: 1
+          maxItems: 10
+          items:
+            type: object
+            required:
+            - age
+            properties:
+              age:
+                type: integer
+                minimum: 0
+                maximum: 120
+        tripPrice:
+          type: number
+          minimum: 0
+          description: Insured trip cost. Required when shouldCoverCancellation is true.
+        currency:
+          type: string
+          description: ISO 4217. Applies to tripPrice and studiesAmount.
+          pattern: ^[A-Z]{3}$
+        shouldCoverCancellation:
+          type: boolean
+          default: false
+        shouldCoverExtremeSports:
+          type: boolean
+          default: false
+        isAnnual:
+          type: boolean
+          default: false
+          description: Forced true by the annual and expat trip types.
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          examples:
+          - UNAUTHORIZED
+          - BAD_LANGUAGE
+          - NO_TRAVELLERS
+          - TOO_MANY_TRAVELLERS
+          - QUOTA_EXCEEDED
+      required:
+      - error
     Offer:
       type: object
       properties:
@@ -303,125 +422,6 @@ components:
         position:
           type: integer
           description: Rank by premium, cheapest first.
-    Trip:
-      type: object
-      required:
-      - intent
-      - startDate
-      - endDate
-      - countryResidence
-      - arrivalCountries
-      - travellers
-      properties:
-        intent:
-          type: string
-          description: Trip type.
-          enum:
-          - forTourism
-          - schengenArea
-          - annual
-          - studyInternship
-          - whv
-          - cruise
-          - digitalNomad
-          - expat
-          - groupTravel
-          - rentalStay
-          - mountainTrip
-          - backToHome
-          - humanitarianAuPair
-          - toWork
-          - cancellation
-        startDate:
-          type: string
-          format: date
-        endDate:
-          type: string
-          format: date
-        countryResidence:
-          type: string
-          description: ISO 3166-1 alpha-2.
-          pattern: ^[A-Z]{2}$
-        arrivalCountries:
-          type: array
-          description: ISO 3166-1 alpha-2, up to 20 destinations.
-          maxItems: 20
-          items:
-            type: string
-            pattern: ^[A-Z]{2}$
-        travellers:
-          type: array
-          description: One entry per traveller, up to 10.
-          minItems: 1
-          maxItems: 10
-          items:
-            type: object
-            required:
-            - age
-            properties:
-              age:
-                type: integer
-                minimum: 0
-                maximum: 120
-        tripPrice:
-          type: number
-          minimum: 0
-          description: Insured trip cost. Required when shouldCoverCancellation is true.
-        currency:
-          type: string
-          description: ISO 4217. Applies to tripPrice and studiesAmount.
-          pattern: ^[A-Z]{3}$
-        shouldCoverCancellation:
-          type: boolean
-          default: false
-        shouldCoverExtremeSports:
-          type: boolean
-          default: false
-        isAnnual:
-          type: boolean
-          default: false
-          description: Forced true by the annual and expat trip types.
-    QuoteResponse:
-      type: object
-      properties:
-        ok:
-          type: boolean
-        mode:
-          type: string
-          enum:
-          - sandbox
-          - live
-        offers:
-          type: array
-          items:
-            $ref: '#/components/schemas/Offer'
-        unpricedCount:
-          type: integer
-          description: Catalogue offers that could not be priced for this trip.
-        nearMissCount:
-          type: integer
-          description: Offers that would match if a filter were relaxed.
-        trip:
-          $ref: '#/components/schemas/Trip'
-        quote:
-          type: object
-          properties:
-            mode:
-              type: string
-            days:
-              type: integer
-            travellers:
-              type: integer
-            expiresAt:
-              type: string
-              format: date-time
-        meta:
-          type: object
-          properties:
-            apiVersion:
-              type: string
-            language:
-              type: string
   responses:
     QuotaExceeded:
       description: Daily quota exhausted; resets at the next UTC midnight.
@@ -429,14 +429,14 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Forbidden:
-      description: The key does not carry the required scope.
+    Unauthorized:
+      description: Missing, expired or invalid signature.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    Unauthorized:
-      description: Missing, expired or invalid signature.
+    Forbidden:
+      description: The key does not carry the required scope.
       content:
         application/json:
           schema:
