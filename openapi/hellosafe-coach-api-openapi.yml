@@ -1,0 +1,370 @@
+openapi: 3.2.0
+info:
+  title: HelloSafe Travel Insurance Coach API
+  version: 2.3.2
+  summary: Price and sell travel insurance from any travel product.
+  description: 'A REST API that prices a trip against a multi-insurer travel insurance catalogue and returns comparable offers with their guarantees, then mints a tracked subscription link so the sale is attributed and paid as commission. Built for travel agencies, tour operators, OTAs, booking engines and travel apps that want to add travel insurance without becoming an insurer or holding a distribution licence.
+
+
+    Every key ships with a free sandbox that returns deterministic fixtures in the exact live response shape, so an integration can be built and tested end to end before a single insurer is called.
+
+
+    **Authentication** is a per-caller HMAC-SHA256 handshake, server to server. Send three headers:
+
+
+    - `x-atlas-key-id`: your key id
+
+    - `x-atlas-timestamp`: unix seconds, rejected beyond a 5 minute window
+
+    - `x-atlas-signature`: `v2=` + hex HMAC-SHA256 of `${timestamp}.${METHOD}.${pathname}.${rawBody}`, keyed with your signing secret
+
+
+    The signature covers the raw request body byte for byte. There is no CORS header on these responses: the signing secret must never reach a browser.'
+  termsOfService: https://atlas.hellosafe.com/legal/terms
+  contact:
+    name: HelloSafe Atlas
+    url: https://atlas.hellosafe.com/platform/api/documentation
+    email: atlas@hellosafe.com
+  x-logo:
+    url: https://atlas.hellosafe.com/hellosafe-logo.svg
+  x-providerName: atlas.hellosafe.com
+  x-apisguru-categories:
+  - financial
+  - ecommerce
+  license:
+    name: Proprietary
+    url: https://atlas.hellosafe.com/legal/terms
+servers:
+- url: https://atlas.hellosafe.com
+  description: Production. Sandbox versus live is decided by your key, not by the URL.
+security:
+- AtlasKeyId: []
+  AtlasTimestamp: []
+  AtlasSignature: []
+tags:
+- name: Coach
+  description: Coverage gaps and ranked sell arguments from a traveller profile and a bank card.
+paths:
+  /api/v1/coach/bilan:
+    post:
+      tags:
+      - Coach
+      summary: 'Coach bilan: coverage gaps and ranked sell arguments'
+      description: 'Analyses a traveller''s situation against the travel cover carried by their bank card, for the chosen destinations, and returns it as data: the card''s GAPS (guarantees in default, adequately covered ones are omitted), a ranked list of arguments each with a strength and a category, the medical recommendation, a social-proof figure and an attributed quote link.
+
+
+        Sell-only by design: it returns the card''s shortcomings, never a reason not to buy, except bilan.medical, which gives the trip''s recommended medical ceiling (it follows the destination) and whether the card meets it. Copy comes back as message KEYS plus interpolation variables, not finished sentences, so you render it in your own wording. Requires a key carrying the `coach` scope, which every self-serve key now has: the sandbox answers from the real engine, and its `offer.quoteUrl` comes back null because a sandbox key credits nobody.'
+      operationId: postCoachBilan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - residence
+              - destinations
+              properties:
+                residence:
+                  type: string
+                  minLength: 2
+                  maxLength: 2
+                  description: ISO 3166-1 alpha-2. Drives the health socle and the default market.
+                  example: FR
+                destinations:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    type: string
+                    minLength: 2
+                    maxLength: 2
+                  example:
+                  - TH
+                  - VN
+                  description: Where they travel. ISO 3166-1 alpha-2, 1 to 50 codes.
+                card:
+                  type: object
+                  description: 'Exactly one card mode: { catalogueId } | { bin } | { bank, network, tier } | { network, tier } | { none: true }. catalogueId names the exact card: take it from GET /api/v1/coach/cards (a sandbox key identifies cards by BIN or bank instead, see key.cardModes there). A BIN or { bank, network, tier } match by range: at a bank with two cards of one tier, the most basic one wins. A card that cannot be resolved never fails the call: it degrades to a baseline card and adds a code to meta.warnings.'
+                  example:
+                    bin: '497010'
+                trip:
+                  type: object
+                  description: Optional booleans, all default false.
+                  properties:
+                    friends:
+                      type: boolean
+                    longTrip:
+                      type: boolean
+                    riskyActivity:
+                      type: boolean
+                market:
+                  type: string
+                  enum:
+                  - fr
+                  - us
+                  - ca
+                  - sg
+                  - my
+                  - universal
+                  description: Currency, formatting and health socle. Derived from residence when omitted.
+                ref:
+                  type: string
+                  description: Overrides the attribution ref baked into the returned quote URL.
+            examples:
+              visaPremiumCard:
+                summary: A French traveller in Thailand, premium Visa card
+                value:
+                  residence: FR
+                  destinations:
+                  - TH
+                  card:
+                    bin: '497010'
+                  trip:
+                    longTrip: true
+                  market: fr
+      responses:
+        '200':
+          description: The bilan. See the guide for the full field by field description.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  card:
+                    type: object
+                    description: 'origin (exact | generic | baseline | none), currency, detected issuer when a BIN resolved, and `guarantees`: the gaps only.'
+                  bilan:
+                    type: object
+                    description: shouldSell, headline, `medical` (the trip's recommended medical ceiling, from 30 000 € inside the traveller's health zone to 500 000 € for the United States, and ceilingOk), social proof, focusCategories, and `arguments` sorted by strength then category. Each argument carries messageKeys + vars, not prose.
+                  destinations:
+                    type: array
+                    items:
+                      type: string
+                  offer:
+                    type: object
+                    description: 'quoteUrl, carrying your attribution when the key is set up with it: a tracked short link (https://atlas.hellosafe.com/r/<code>?res=..&lang=..) that counts each click in your dashboard''s Links tab, then opens the HelloSafe travel form. Display it as it comes.'
+                  meta:
+                    type: object
+                    description: engineVersion, market, lang, passport and non-fatal warnings.
+        '400':
+          description: INVALID_JSON, BAD_RESIDENCE or NO_DESTINATIONS.
+        '401':
+          description: UNAUTHORIZED, STALE_TIMESTAMP or INVALID_SIGNATURE.
+        '403':
+          description: 'SCOPE_FORBIDDEN: the key lacks the coach scope.'
+        '502':
+          description: AUTH_LOOKUP_FAILED or CARD_RESOLVE_FAILED.
+  /api/v1/coach/cards:
+    get:
+      tags:
+      - Coach
+      operationId: getCoachCards
+      summary: 'Card catalogue: the banks and cards the Coach knows'
+      description: 'The bank cards the Coach knows, per country of residence: each bank, then its cards, with the name printed on the card, its picture, the tier the Coach reads from that name, and the catalogueId that names the card exactly in POST /api/v1/coach/bilan. Built for a card picker: the traveller''s bank, then their card, then the bilan with { catalogueId }. byBankTier says whether { bank, network, tier } would land on that same card: at a bank with two cards of one tier, only the most basic one is reachable that way. Travellers whose bank is not listed fall back to the generic { network, tier } profiles listed under generic. Signed like every endpoint, with an empty body: the query string is not signed. Does not consume quota.'
+      parameters:
+      - name: country
+        in: query
+        required: false
+        schema:
+          type: string
+          minLength: 2
+          maxLength: 2
+        example: FR
+        description: 'Country of residence, ISO 3166-1 alpha-2. Omitted: every country with a bank list (FR, US, CA, SG, MY). Any other valid code returns an empty banks list.'
+      - name: lang
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - fr
+          - en
+        description: 'Language of the card names. Default: French for FR, English elsewhere.'
+      responses:
+        '200':
+          description: The catalogue.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoachCardsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+components:
+  schemas:
+    CoachCardsResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        country:
+          type:
+          - string
+          - 'null'
+          description: The country asked for, or null when every country was listed.
+        key:
+          type: object
+          properties:
+            keyId:
+              type: string
+            mode:
+              type: string
+              enum:
+              - sandbox
+              - live
+            cardModes:
+              type: array
+              items:
+                type: string
+                enum:
+                - bin
+                - bank
+                - catalogueId
+                - network
+                - none
+              description: The card modes this key may send to POST /api/v1/coach/bilan.
+        countries:
+          type: array
+          description: Every country with a bank list, whichever country was asked for.
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              market:
+                type: string
+              banks:
+                type: integer
+              cards:
+                type: integer
+        banks:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                description: The bank name the { bank, network, tier } mode accepts.
+              country:
+                type: string
+              logoUrl:
+                type:
+                - string
+                - 'null'
+              cards:
+                type: array
+                description: Most basic first.
+                items:
+                  type: object
+                  properties:
+                    catalogueId:
+                      type: integer
+                      description: 'Names this card exactly: send it as card.catalogueId.'
+                    name:
+                      type: string
+                      description: The card's name as printed.
+                    network:
+                      type:
+                      - string
+                      - 'null'
+                      description: visa, mastercard, amex...
+                    tier:
+                      type:
+                      - string
+                      - 'null'
+                      enum:
+                      - entry
+                      - mid
+                      - premium
+                      - elite
+                      - business
+                      - null
+                      description: The range the Coach reads from the card's name. Null when the name carries no range word.
+                    byBankTier:
+                      type: boolean
+                      description: True when { bank, network, tier } lands on this very card.
+                    imageUrl:
+                      type:
+                      - string
+                      - 'null'
+        generic:
+          type: array
+          description: Networks and the tiers with a generic profile of their own, for a bank that is not listed.
+          items:
+            type: object
+            properties:
+              network:
+                type: string
+              tiers:
+                type: array
+                items:
+                  type: string
+        tiers:
+          type: array
+          description: What each tier reads as on a card.
+          items:
+            type: object
+            properties:
+              tier:
+                type: string
+              examples:
+                type: array
+                items:
+                  type: string
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          examples:
+          - UNAUTHORIZED
+          - BAD_LANGUAGE
+          - NO_TRAVELLERS
+          - TOO_MANY_TRAVELLERS
+          - QUOTA_EXCEEDED
+      required:
+      - error
+  responses:
+    BadRequest:
+      description: Malformed request.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing, expired or invalid signature.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: The key does not carry the required scope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    AtlasKeyId:
+      type: apiKey
+      in: header
+      name: x-atlas-key-id
+      description: Your key id, from partners.api_clients.
+    AtlasTimestamp:
+      type: apiKey
+      in: header
+      name: x-atlas-timestamp
+      description: Unix seconds. Rejected beyond a 5 minute replay window.
+    AtlasSignature:
+      type: apiKey
+      in: header
+      name: x-atlas-signature
+      description: v2=<hex HMAC-SHA256 of `${ts}.${METHOD}.${pathname}.${rawBody}`>.
+externalDocs:
+  description: Travel insurance API documentation
+  url: https://atlas.hellosafe.com/platform/api/documentation

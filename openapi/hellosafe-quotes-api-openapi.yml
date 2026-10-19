@@ -1,16 +1,36 @@
 openapi: 3.2.0
 info:
   title: HelloSafe Travel Insurance Quotes API
-  version: 1.0.0
+  version: 2.3.2
   summary: Price and sell travel insurance from any travel product.
-  description: A REST API that prices a trip against a multi-insurer travel insurance catalogue and returns comparable offers with their guarantees, then mints a tracked subscription link so the sale is attributed and paid as commission.
+  description: 'A REST API that prices a trip against a multi-insurer travel insurance catalogue and returns comparable offers with their guarantees, then mints a tracked subscription link so the sale is attributed and paid as commission. Built for travel agencies, tour operators, OTAs, booking engines and travel apps that want to add travel insurance without becoming an insurer or holding a distribution licence.
+
+
+    Every key ships with a free sandbox that returns deterministic fixtures in the exact live response shape, so an integration can be built and tested end to end before a single insurer is called.
+
+
+    **Authentication** is a per-caller HMAC-SHA256 handshake, server to server. Send three headers:
+
+
+    - `x-atlas-key-id`: your key id
+
+    - `x-atlas-timestamp`: unix seconds, rejected beyond a 5 minute window
+
+    - `x-atlas-signature`: `v2=` + hex HMAC-SHA256 of `${timestamp}.${METHOD}.${pathname}.${rawBody}`, keyed with your signing secret
+
+
+    The signature covers the raw request body byte for byte. There is no CORS header on these responses: the signing secret must never reach a browser.'
   termsOfService: https://atlas.hellosafe.com/legal/terms
   contact:
     name: HelloSafe Atlas
-    url: https://atlas.hellosafe.com/platform/api
+    url: https://atlas.hellosafe.com/platform/api/documentation
     email: atlas@hellosafe.com
   x-logo:
     url: https://atlas.hellosafe.com/hellosafe-logo.svg
+  x-providerName: atlas.hellosafe.com
+  x-apisguru-categories:
+  - financial
+  - ecommerce
   license:
     name: Proprietary
     url: https://atlas.hellosafe.com/legal/terms
@@ -31,7 +51,7 @@ paths:
       - Quotes
       operationId: getTravelMeta
       summary: Reference data and key state
-      description: 'The vocabulary a caller would otherwise hard-code: the 15 trip types, the 26 funnel languages, the guarantee slugs with their English labels and groups, the guarantee states a response can carry, the request ceilings, and your key''s own environment and quota. Does not consume quota.'
+      description: 'The vocabulary a caller would otherwise hard-code: the 15 trip types, the 26 funnel languages, the 51 US state codes a US resident''s stateResidence accepts, the guarantee slugs with their English labels and groups, the guarantee states a response can carry, the request ceilings, and your key''s own environment and quota. Does not consume quota.'
       responses:
         '200':
           description: Reference data.
@@ -49,7 +69,10 @@ paths:
       - Quotes
       operationId: createTravelQuote
       summary: Price a trip
-      description: 'Prices one trip against the travel catalogue and returns the priced offers, cheapest first, each with its premium, its guarantee ceilings and its policy documents. Read-only: nothing is stored, no subscription is created and no attribution happens here.'
+      description: 'Prices one trip against the travel catalogue and returns the priced offers, cheapest first, each with its premium, its guarantee ceilings and its policy documents. Read-only: nothing is stored, no subscription is created and no attribution happens here.
+
+
+        Every response also opens a quoting session: `sessionId` is a signed token identifying THIS traveller''s flow, and POST /links requires it. To keep one traveller''s session across a trip edit, echo the previous `sessionId` in the body — a valid one is returned unchanged, anything else silently starts a fresh session (a broken continuation never fails a pricing call). Never share one sessionId across travellers.'
       requestBody:
         required: true
         content:
@@ -75,6 +98,21 @@ paths:
                     shouldCoverExtremeSports: false
                     isAnnual: false
                   language: en
+              newYorkResident:
+                summary: A New York resident, one week in Mexico
+                value:
+                  trip:
+                    intent: forTourism
+                    startDate: '2026-11-20'
+                    endDate: '2026-11-27'
+                    countryResidence: US
+                    stateResidence: NY
+                    arrivalCountries:
+                    - MX
+                    travellers:
+                    - age: 41
+                    currency: USD
+                  language: en
       responses:
         '200':
           description: Priced offers.
@@ -90,53 +128,13 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '429':
           $ref: '#/components/responses/QuotaExceeded'
+          description: Refused. QUOTA_EXCEEDED when the daily bucket is spent (Retry-After points at the next UTC day), RATE_LIMITED when more than 60 calls left in the current minute (Retry-After points at the next minute). Neither refusal is counted against your quota.
         '502':
           description: Upstream pricing failed.
         '504':
           description: Upstream pricing timed out.
 components:
   schemas:
-    QuoteResponse:
-      type: object
-      properties:
-        ok:
-          type: boolean
-        mode:
-          type: string
-          enum:
-          - sandbox
-          - live
-        offers:
-          type: array
-          items:
-            $ref: '#/components/schemas/Offer'
-        unpricedCount:
-          type: integer
-          description: Catalogue offers that could not be priced for this trip.
-        nearMissCount:
-          type: integer
-          description: Offers that would match if a filter were relaxed.
-        trip:
-          $ref: '#/components/schemas/Trip'
-        quote:
-          type: object
-          properties:
-            mode:
-              type: string
-            days:
-              type: integer
-            travellers:
-              type: integer
-            expiresAt:
-              type: string
-              format: date-time
-        meta:
-          type: object
-          properties:
-            apiVersion:
-              type: string
-            language:
-              type: string
     MetaResponse:
       type: object
       properties:
@@ -173,6 +171,11 @@ components:
               type: array
               items:
                 type: string
+            usStates:
+              type: array
+              description: 'The USPS codes stateResidence accepts: the 50 states and DC.'
+              items:
+                type: string
             maxTravellers:
               type: integer
             maxDestinations:
@@ -201,135 +204,72 @@ components:
                 type: string
               meaning:
                 type: string
-    QuoteRequest:
+    QuoteResponse:
       type: object
-      required:
-      - trip
       properties:
+        ok:
+          type: boolean
+        mode:
+          type: string
+          enum:
+          - sandbox
+          - live
+        sessionId:
+          type: string
+          description: This traveller's quoting session, `qs_<nonce>.<hmac>`. Required by POST /links. Fresh on every response unless you echoed a valid one in.
+        offers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Offer'
+        unpricedCount:
+          type: integer
+          description: Catalogue offers that could not be priced for this trip.
+        redirectOnlyCount:
+          type: integer
+          description: 'Offers that matched and were priced but are deliberately NOT returned: the catalogue sells them by redirecting the traveller to the insurer''s own site, so no subscription is created, the conversion postback never fires, and the sale could not be attributed or paid to you. Normally 0, because they are now excluded before we ever see them; a non-zero value means one slipped past that exclusion and our own filter caught it. Every offer you DO get back is one you can be paid on.'
+        nearMissCount:
+          type: integer
+          description: Offers that would match if a filter were relaxed.
         trip:
           $ref: '#/components/schemas/Trip'
-        language:
-          type: string
-          default: en
-          description: Funnel language.
-          enum:
-          - bg
-          - cs
-          - da
-          - de
-          - el
-          - en
-          - es
-          - et
-          - fi
-          - fr
-          - hr
-          - hu
-          - is
-          - it
-          - lt
-          - lv
-          - mt
-          - nl
-          - 'no'
-          - pl
-          - pt
-          - ro
-          - sk
-          - sl
-          - sv
-          - tr
-    Trip:
-      type: object
-      required:
-      - intent
-      - startDate
-      - endDate
-      - countryResidence
-      - arrivalCountries
-      - travellers
-      properties:
-        intent:
-          type: string
-          description: Trip type.
-          enum:
-          - forTourism
-          - schengenArea
-          - annual
-          - studyInternship
-          - whv
-          - cruise
-          - digitalNomad
-          - expat
-          - groupTravel
-          - rentalStay
-          - mountainTrip
-          - backToHome
-          - humanitarianAuPair
-          - toWork
-          - cancellation
-        startDate:
-          type: string
-          format: date
-        endDate:
-          type: string
-          format: date
-        countryResidence:
-          type: string
-          description: ISO 3166-1 alpha-2.
-          pattern: ^[A-Z]{2}$
-        arrivalCountries:
-          type: array
-          description: ISO 3166-1 alpha-2, up to 20 destinations.
-          maxItems: 20
-          items:
-            type: string
-            pattern: ^[A-Z]{2}$
-        travellers:
-          type: array
-          description: One entry per traveller, up to 10.
-          minItems: 1
-          maxItems: 10
-          items:
-            type: object
-            required:
-            - age
-            properties:
-              age:
-                type: integer
-                minimum: 0
-                maximum: 120
-        tripPrice:
-          type: number
-          minimum: 0
-          description: Insured trip cost. Required when shouldCoverCancellation is true.
-        currency:
-          type: string
-          description: ISO 4217. Applies to tripPrice and studiesAmount.
-          pattern: ^[A-Z]{3}$
-        shouldCoverCancellation:
-          type: boolean
-          default: false
-        shouldCoverExtremeSports:
-          type: boolean
-          default: false
-        isAnnual:
-          type: boolean
-          default: false
-          description: Forced true by the annual and expat trip types.
-    Error:
-      type: object
-      properties:
-        error:
-          type: string
-          examples:
-          - UNAUTHORIZED
-          - BAD_LANGUAGE
-          - NO_TRAVELLERS
-          - TOO_MANY_TRAVELLERS
-          - QUOTA_EXCEEDED
-      required:
-      - error
+        quote:
+          type: object
+          properties:
+            mode:
+              type: string
+            days:
+              type: integer
+            travellers:
+              type: integer
+            expiresAt:
+              type: string
+              format: date-time
+        meta:
+          type: object
+          properties:
+            apiVersion:
+              type: string
+            language:
+              type: string
+            notice:
+              type: string
+              description: Plain-language caveat about the prices in this response.
+            partnerFee:
+              type: object
+              description: 'Present ONLY when your account charges an uplift on top of the standard handling fee. It is not a separate amount to add: every price.amount below already includes it, and the funnel charges the same figure at checkout. Absent means the standard fee, and the commission your account earns by default.'
+              properties:
+                feeBps:
+                  type: integer
+                  description: Whole handling fee applied to these prices, in basis points of the insurer premium (1300 = 13%).
+                  example: 3300
+                upliftBps:
+                  type: integer
+                  description: The part of that fee you chose to add, in basis points of the premium.
+                  example: 2000
+                commissionBps:
+                  type: integer
+                  description: What a sale at these prices pays you, in basis points of the premium.
+                  example: 2700
     Offer:
       type: object
       properties:
@@ -355,15 +295,32 @@ components:
               - string
               - 'null'
               format: uri
+              description: 'THE IMAGE TO DISPLAY for this offer. Since 2.0.0 this is the offer''s own pictogram whenever it has one, and the insurer''s logo only for an offer that carries no icon. The field name is now a misnomer and is kept deliberately: your integration already reads it, so you get the new image with no change on your side. `insurer.name` is untouched, so you can keep showing "underwritten by <insurer>". The insurer''s logo for an offer that has an icon is no longer published in this response.'
+        iconUrl:
+          type: string
+          format: uri
+          description: 'The offer''s own pictogram, as an SVG served by the same renderer that draws it on hellosafe.com, so your visitor sees exactly what ours does. Takes an optional `?size=16..512` (default 128); the drawing is vector, so any size is sharp. Since 2.0.0 this is the SAME URL as `insurer.logoUrl` whenever the offer has an icon, and it is published separately so you can tell the two cases apart: `iconUrl` present means the image is our pictogram, `iconUrl` ABSENT — not null, not an empty string — means the offer has no pictogram and `logoUrl` is the insurer''s own logo. Reading `logoUrl` alone can no longer tell you which you got. Treat it as optional: every brokerage offer in the live catalogue carries one today (measured 2026-09-03 across FR/US/CA/AU/GB and all 16 trip types), but an offer can be published without one.'
+          example: https://hellosafe.com/api/offer-icon/156
         price:
           type: object
           properties:
             amount:
               type: number
+              description: What the traveller pays. When the request carried a `currency` and conversion was possible, this is the converted amount, using the same rate, margin and rounding as the subscription funnel and the card charge. Display this value. Converting `insurerAmount` yourself will quote your customer less than they are charged.
             amountInCents:
               type: integer
+              description: '`amount` in minor units of `currency`.'
             currency:
               type: string
+              description: ISO 4217, uppercase. Equal to the requested `currency` when conversion happened.
+              example: AUD
+            insurerAmount:
+              type: number
+              description: The insurer's own price, before conversion. Equal to `amount` when no conversion happened. For reconciliation, not for display.
+            insurerCurrency:
+              type: string
+              description: ISO 4217, uppercase. The currency the insurer prices in.
+              example: EUR
             isStartingPrice:
               type: boolean
               description: true = a from price; the exact premium is set in the funnel.
@@ -422,9 +379,203 @@ components:
         position:
           type: integer
           description: Rank by premium, cheapest first.
+    Trip:
+      type: object
+      required:
+      - intent
+      - startDate
+      - endDate
+      - countryResidence
+      - arrivalCountries
+      - travellers
+      properties:
+        intent:
+          type: string
+          description: Trip type. `humanitarianAuPair` is still accepted and read as `humanitarian`.
+          enum:
+          - forTourism
+          - schengenArea
+          - annual
+          - studyInternship
+          - whv
+          - cruise
+          - digitalNomad
+          - expat
+          - groupTravel
+          - rentalStay
+          - mountainTrip
+          - backToHome
+          - humanitarian
+          - auPair
+          - toWork
+          - cancellation
+        startDate:
+          type: string
+          format: date
+          description: First day of cover, YYYY-MM-DD.
+        endDate:
+          type: string
+          format: date
+          description: Last day of cover, YYYY-MM-DD. Never before startDate.
+        countryResidence:
+          type: string
+          description: ISO 3166-1 alpha-2.
+          pattern: ^[A-Z]{2}$
+        stateResidence:
+          type: string
+          description: 'US residents only: the state they live in, as its USPS code (one of the 50 states or DC, also listed by GET /meta as trip.usStates). US travel insurance is regulated state by state, so `US` alone does not identify a resident. Optional, and it prices nothing: the offers and premiums are the same with or without it. It is echoed in the priced `trip`, and POST /links stores it on the subscription. Read only when countryResidence is `US` and dropped for any other residence; for a US resident, any other value is refused with BAD_STATE_RESIDENCE. The five US territories are countries, not states: a Puerto Rico resident is countryResidence `PR` with no stateResidence, and the same goes for GU, VI, AS and MP.'
+          enum:
+          - AL
+          - AK
+          - AZ
+          - AR
+          - CA
+          - CO
+          - CT
+          - DE
+          - DC
+          - FL
+          - GA
+          - HI
+          - ID
+          - IL
+          - IN
+          - IA
+          - KS
+          - KY
+          - LA
+          - ME
+          - MD
+          - MA
+          - MI
+          - MN
+          - MS
+          - MO
+          - MT
+          - NE
+          - NV
+          - NH
+          - NJ
+          - NM
+          - NY
+          - NC
+          - ND
+          - OH
+          - OK
+          - OR
+          - PA
+          - RI
+          - SC
+          - SD
+          - TN
+          - TX
+          - UT
+          - VT
+          - VA
+          - WA
+          - WV
+          - WI
+          - WY
+          example: NY
+        arrivalCountries:
+          type: array
+          description: ISO 3166-1 alpha-2, up to 20 destinations.
+          maxItems: 20
+          items:
+            type: string
+            pattern: ^[A-Z]{2}$
+        travellers:
+          type: array
+          description: One entry per traveller, up to 50. Above roughly 10 the individual products give way to the group product, which prices flat per head.
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            required:
+            - age
+            properties:
+              age:
+                type: integer
+                minimum: 0
+                maximum: 120
+        tripPrice:
+          type: number
+          minimum: 0
+          description: 'Insured trip cost: the total price of the trip for the whole party, not a per-traveller amount. Required when shouldCoverCancellation is true.'
+        currency:
+          type: string
+          description: 'ISO 4217. The currency we price in, and the one tripPrice and studiesAmount are read in. Default EUR. Offers come back converted into it, using the same rate, margin and rounding as the subscription funnel and the card charge. A code we cannot convert into leaves offers in the insurer''s own currency rather than failing the call: 33 codes are supported (USD, EUR, GBP, JPY, CNY, CHF, CAD, AUD, SEK, NOK, DKK, PLN, HUF, CZK, RON, BGN, RSD, ALL, MKD, BAM, BRL, MXN, MAD, ZAR, PHP, TRY, INR, HKD, SGD, AED, KRW, ISK, NZD).'
+          pattern: ^[A-Z]{3}$
+        shouldCoverCancellation:
+          type: boolean
+          default: false
+          description: Ask for cancellation cover. Requires tripPrice.
+        shouldCoverExtremeSports:
+          type: boolean
+          default: false
+          description: Ask for extreme sports cover.
+        isAnnual:
+          type: boolean
+          default: false
+          description: Forced true by the annual and expat trip types.
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          examples:
+          - UNAUTHORIZED
+          - BAD_LANGUAGE
+          - NO_TRAVELLERS
+          - TOO_MANY_TRAVELLERS
+          - QUOTA_EXCEEDED
+      required:
+      - error
+    QuoteRequest:
+      type: object
+      required:
+      - trip
+      properties:
+        trip:
+          $ref: '#/components/schemas/Trip'
+          description: The trip to cover. Fields listed under The trip object below.
+        sessionId:
+          type: string
+          description: 'Optional: the sessionId from THIS traveller''s previous /quotes response, to keep their session across a trip edit. A valid token is echoed back; anything else silently starts a fresh session. Never reuse one across travellers.'
+        language:
+          type: string
+          default: en
+          description: Funnel language.
+          enum:
+          - bg
+          - cs
+          - da
+          - de
+          - el
+          - en
+          - es
+          - et
+          - fi
+          - fr
+          - hr
+          - hu
+          - is
+          - it
+          - lt
+          - lv
+          - mt
+          - nl
+          - 'no'
+          - pl
+          - pt
+          - ro
+          - sk
+          - sl
+          - sv
+          - tr
   responses:
-    QuotaExceeded:
-      description: Daily quota exhausted; resets at the next UTC midnight.
+    BadRequest:
+      description: Malformed request.
       content:
         application/json:
           schema:
@@ -441,8 +592,8 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    BadRequest:
-      description: Malformed request.
+    QuotaExceeded:
+      description: Daily quota exhausted; resets at the next UTC midnight.
       content:
         application/json:
           schema:
@@ -465,4 +616,4 @@ components:
       description: v2=<hex HMAC-SHA256 of `${ts}.${METHOD}.${pathname}.${rawBody}`>.
 externalDocs:
   description: Travel insurance API documentation
-  url: https://atlas.hellosafe.com/platform/api
+  url: https://atlas.hellosafe.com/platform/api/documentation

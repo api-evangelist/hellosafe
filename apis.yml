@@ -101,6 +101,16 @@ apis:
     url: https://atlas.hellosafe.com/legal/privacy
   - type: Documentation
     url: https://atlas.hellosafe.com/platform/coach
+- aid: hellosafe:hellosafe-coach-api
+  name: HelloSafe Coach API
+  description: Coverage gaps and ranked sell arguments from a traveller profile and a bank card.
+  humanURL: https://atlas.hellosafe.com/platform/api
+  baseURL: https://atlas.hellosafe.com/api/v1/travel
+  tags:
+  - Coach
+  properties:
+  - type: OpenAPI
+    url: openapi/hellosafe-coach-api-openapi.yml
 common:
 - type: CapabilityMap
   url: capabilities/hellosafe-capability-edges.yml

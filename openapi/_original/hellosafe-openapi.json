@@ -1,0 +1,1476 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HelloSafe Travel Insurance API",
+    "version": "2.3.2",
+    "summary": "Price and sell travel insurance from any travel product.",
+    "description": "A REST API that prices a trip against a multi-insurer travel insurance catalogue and returns comparable offers with their guarantees, then mints a tracked subscription link so the sale is attributed and paid as commission. Built for travel agencies, tour operators, OTAs, booking engines and travel apps that want to add travel insurance without becoming an insurer or holding a distribution licence.\n\nEvery key ships with a free sandbox that returns deterministic fixtures in the exact live response shape, so an integration can be built and tested end to end before a single insurer is called.\n\n**Authentication** is a per-caller HMAC-SHA256 handshake, server to server. Send three headers:\n\n- `x-atlas-key-id`: your key id\n- `x-atlas-timestamp`: unix seconds, rejected beyond a 5 minute window\n- `x-atlas-signature`: `v2=` + hex HMAC-SHA256 of `${timestamp}.${METHOD}.${pathname}.${rawBody}`, keyed with your signing secret\n\nThe signature covers the raw request body byte for byte. There is no CORS header on these responses: the signing secret must never reach a browser.",
+    "termsOfService": "https://atlas.hellosafe.com/legal/terms",
+    "contact": {
+      "name": "HelloSafe Atlas",
+      "url": "https://atlas.hellosafe.com/platform/api/documentation",
+      "email": "atlas@hellosafe.com"
+    },
+    "x-logo": {
+      "url": "https://atlas.hellosafe.com/hellosafe-logo.svg"
+    },
+    "x-providerName": "atlas.hellosafe.com",
+    "x-apisguru-categories": [
+      "financial",
+      "ecommerce"
+    ],
+    "license": {
+      "name": "Proprietary",
+      "url": "https://atlas.hellosafe.com/legal/terms"
+    }
+  },
+  "externalDocs": {
+    "description": "Travel insurance API documentation",
+    "url": "https://atlas.hellosafe.com/platform/api/documentation"
+  },
+  "servers": [
+    {
+      "url": "https://atlas.hellosafe.com",
+      "description": "Production. Sandbox versus live is decided by your key, not by the URL."
+    }
+  ],
+  "tags": [
+    {
+      "name": "Quotes",
+      "description": "Price a trip and read the catalogue vocabulary."
+    },
+    {
+      "name": "Links",
+      "description": "Turn a chosen offer into a tracked, attributed subscription link."
+    },
+    {
+      "name": "Conversion",
+      "description": "Server-to-server conversion postback."
+    },
+    {
+      "name": "Coach",
+      "description": "Coverage gaps and ranked sell arguments from a traveller profile and a bank card."
+    }
+  ],
+  "security": [
+    {
+      "AtlasKeyId": [],
+      "AtlasTimestamp": [],
+      "AtlasSignature": []
+    }
+  ],
+  "paths": {
+    "/api/v1/travel/meta": {
+      "get": {
+        "tags": [
+          "Quotes"
+        ],
+        "operationId": "getTravelMeta",
+        "summary": "Reference data and key state",
+        "description": "The vocabulary a caller would otherwise hard-code: the 15 trip types, the 26 funnel languages, the 51 US state codes a US resident's stateResidence accepts, the guarantee slugs with their English labels and groups, the guarantee states a response can carry, the request ceilings, and your key's own environment and quota. Does not consume quota.",
+        "responses": {
+          "200": {
+            "description": "Reference data.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/api/v1/travel/quotes": {
+      "post": {
+        "tags": [
+          "Quotes"
+        ],
+        "operationId": "createTravelQuote",
+        "summary": "Price a trip",
+        "description": "Prices one trip against the travel catalogue and returns the priced offers, cheapest first, each with its premium, its guarantee ceilings and its policy documents. Read-only: nothing is stored, no subscription is created and no attribution happens here.\n\nEvery response also opens a quoting session: `sessionId` is a signed token identifying THIS traveller's flow, and POST /links requires it. To keep one traveller's session across a trip edit, echo the previous `sessionId` in the body — a valid one is returned unchanged, anything else silently starts a fresh session (a broken continuation never fails a pricing call). Never share one sessionId across travellers.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteRequest"
+              },
+              "examples": {
+                "twoWeeksInThailand": {
+                  "summary": "One adult, two weeks in Thailand",
+                  "value": {
+                    "trip": {
+                      "intent": "forTourism",
+                      "startDate": "2026-09-10",
+                      "endDate": "2026-09-24",
+                      "countryResidence": "FR",
+                      "arrivalCountries": [
+                        "TH"
+                      ],
+                      "travellers": [
+                        {
+                          "age": 32
+                        }
+                      ],
+                      "tripPrice": 1500,
+                      "currency": "EUR",
+                      "shouldCoverCancellation": false,
+                      "shouldCoverExtremeSports": false,
+                      "isAnnual": false
+                    },
+                    "language": "en"
+                  }
+                },
+                "newYorkResident": {
+                  "summary": "A New York resident, one week in Mexico",
+                  "value": {
+                    "trip": {
+                      "intent": "forTourism",
+                      "startDate": "2026-11-20",
+                      "endDate": "2026-11-27",
+                      "countryResidence": "US",
+                      "stateResidence": "NY",
+                      "arrivalCountries": [
+                        "MX"
+                      ],
+                      "travellers": [
+                        {
+                          "age": 41
+                        }
+                      ],
+                      "currency": "USD"
+                    },
+                    "language": "en"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Priced offers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/QuotaExceeded",
+            "description": "Refused. QUOTA_EXCEEDED when the daily bucket is spent (Retry-After points at the next UTC day), RATE_LIMITED when more than 60 calls left in the current minute (Retry-After points at the next minute). Neither refusal is counted against your quota."
+          },
+          "502": {
+            "description": "Upstream pricing failed."
+          },
+          "504": {
+            "description": "Upstream pricing timed out."
+          }
+        }
+      }
+    },
+    "/api/v1/travel/links": {
+      "post": {
+        "tags": [
+          "Links"
+        ],
+        "operationId": "createTravelLink",
+        "summary": "Mint a tracked subscription link",
+        "description": "Turns a quoting session into the tracked link handed to the traveller. The first call of a session creates a quoting-stage subscription with your affiliate reference baked in server-side and returns the URL that resumes it; every later call of the SAME session returns the SAME subscription: a repeat offer click replays it (200, `replayed: true`), a changed trip updates it in place (`updated: true`), and a different session can never reach it, so two travellers with identical trips can never share a link. One exception protects the traveller: once they take the subscription past quoting (presubscribed, paid, subscribed), it is frozen, and the next call of the session rolls onto a fresh subscription (201, new subscriptionId) that the session follows from then on.\n\n`sessionId` is REQUIRED and comes from the POST /quotes response; a fabricated value fails its HMAC with BAD_SESSION_ID. Pass the `offerId` the traveller clicked to land them straight on the presubscribe form with that offer selected at the live re-rated premium (the funnel falls back to the offer list when the offer no longer prices); without it the link lands on the offer list.\n\nThe affiliate reference lives on the subscription rather than in a query string, so attribution survives a copy-paste through a messaging app, an email client and a browser redirect, and cannot be forged.\n\nWith a sandbox key (`ak_test_`), no real subscription is created, so there is nothing for the link to resume. `subscriptionId` is a placeholder (`sub_sandbox_...`), `ref` is null, and `url` opens the HelloSafe quote form with only the residence country, destinations, number of travellers and trip intent prefilled: never the dates or the ages, and never the subscription step, even when you pass an `offerId`. The prefilled subscription step (`/travel-insurance/app/subscribe?subscription_id=...&offerId=...`) only exists with a live key (`ak_live_`).\n\nWarning: the sandbox link opens the real hellosafe.com funnel. There is no test card and no sandbox checkout, so any payment made through a sandbox link is a real purchase with a real card. Testing the payment step end to end means making a real purchase through a link minted with your live key.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkRequest"
+              },
+              "examples": {
+                "chosenOffer": {
+                  "summary": "The trip you just priced and the offer the traveller clicked",
+                  "value": {
+                    "sessionId": "qs_PASTE_THE_SESSION_FROM_YOUR_QUOTES_RESPONSE",
+                    "trip": {
+                      "intent": "forTourism",
+                      "startDate": "2026-09-10",
+                      "endDate": "2026-09-24",
+                      "countryResidence": "FR",
+                      "arrivalCountries": [
+                        "TH"
+                      ],
+                      "travellers": [
+                        {
+                          "age": 32
+                        }
+                      ]
+                    },
+                    "language": "en",
+                    "offerId": 900001
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The session already holds its subscription: replayed (and updated in place when the trip changed).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "First mint of this session: the tracked link was created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/QuotaExceeded",
+            "description": "Refused. QUOTA_EXCEEDED when the daily bucket is spent (Retry-After points at the next UTC day), RATE_LIMITED when more than 60 calls left in the current minute (Retry-After points at the next minute). Neither refusal is counted against your quota."
+          }
+        }
+      }
+    },
+    "/api/v1/coach/bilan": {
+      "post": {
+        "tags": [
+          "Coach"
+        ],
+        "summary": "Coach bilan: coverage gaps and ranked sell arguments",
+        "description": "Analyses a traveller's situation against the travel cover carried by their bank card, for the chosen destinations, and returns it as data: the card's GAPS (guarantees in default, adequately covered ones are omitted), a ranked list of arguments each with a strength and a category, the medical recommendation, a social-proof figure and an attributed quote link.\n\nSell-only by design: it returns the card's shortcomings, never a reason not to buy, except bilan.medical, which gives the trip's recommended medical ceiling (it follows the destination) and whether the card meets it. Copy comes back as message KEYS plus interpolation variables, not finished sentences, so you render it in your own wording. Requires a key carrying the `coach` scope, which every self-serve key now has: the sandbox answers from the real engine, and its `offer.quoteUrl` comes back null because a sandbox key credits nobody.",
+        "operationId": "postCoachBilan",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "residence",
+                  "destinations"
+                ],
+                "properties": {
+                  "residence": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 2,
+                    "description": "ISO 3166-1 alpha-2. Drives the health socle and the default market.",
+                    "example": "FR"
+                  },
+                  "destinations": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "items": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 2
+                    },
+                    "example": [
+                      "TH",
+                      "VN"
+                    ],
+                    "description": "Where they travel. ISO 3166-1 alpha-2, 1 to 50 codes."
+                  },
+                  "card": {
+                    "type": "object",
+                    "description": "Exactly one card mode: { catalogueId } | { bin } | { bank, network, tier } | { network, tier } | { none: true }. catalogueId names the exact card: take it from GET /api/v1/coach/cards (a sandbox key identifies cards by BIN or bank instead, see key.cardModes there). A BIN or { bank, network, tier } match by range: at a bank with two cards of one tier, the most basic one wins. A card that cannot be resolved never fails the call: it degrades to a baseline card and adds a code to meta.warnings.",
+                    "example": {
+                      "bin": "497010"
+                    }
+                  },
+                  "trip": {
+                    "type": "object",
+                    "description": "Optional booleans, all default false.",
+                    "properties": {
+                      "friends": {
+                        "type": "boolean"
+                      },
+                      "longTrip": {
+                        "type": "boolean"
+                      },
+                      "riskyActivity": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "market": {
+                    "type": "string",
+                    "enum": [
+                      "fr",
+                      "us",
+                      "ca",
+                      "sg",
+                      "my",
+                      "universal"
+                    ],
+                    "description": "Currency, formatting and health socle. Derived from residence when omitted."
+                  },
+                  "ref": {
+                    "type": "string",
+                    "description": "Overrides the attribution ref baked into the returned quote URL."
+                  }
+                }
+              },
+              "examples": {
+                "visaPremiumCard": {
+                  "summary": "A French traveller in Thailand, premium Visa card",
+                  "value": {
+                    "residence": "FR",
+                    "destinations": [
+                      "TH"
+                    ],
+                    "card": {
+                      "bin": "497010"
+                    },
+                    "trip": {
+                      "longTrip": true
+                    },
+                    "market": "fr"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The bilan. See the guide for the full field by field description.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "card": {
+                      "type": "object",
+                      "description": "origin (exact | generic | baseline | none), currency, detected issuer when a BIN resolved, and `guarantees`: the gaps only."
+                    },
+                    "bilan": {
+                      "type": "object",
+                      "description": "shouldSell, headline, `medical` (the trip's recommended medical ceiling, from 30 000 € inside the traveller's health zone to 500 000 € for the United States, and ceilingOk), social proof, focusCategories, and `arguments` sorted by strength then category. Each argument carries messageKeys + vars, not prose."
+                    },
+                    "destinations": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "offer": {
+                      "type": "object",
+                      "description": "quoteUrl, carrying your attribution when the key is set up with it: a tracked short link (https://atlas.hellosafe.com/r/<code>?res=..&lang=..) that counts each click in your dashboard's Links tab, then opens the HelloSafe travel form. Display it as it comes."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "engineVersion, market, lang, passport and non-fatal warnings."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_JSON, BAD_RESIDENCE or NO_DESTINATIONS."
+          },
+          "401": {
+            "description": "UNAUTHORIZED, STALE_TIMESTAMP or INVALID_SIGNATURE."
+          },
+          "403": {
+            "description": "SCOPE_FORBIDDEN: the key lacks the coach scope."
+          },
+          "502": {
+            "description": "AUTH_LOOKUP_FAILED or CARD_RESOLVE_FAILED."
+          }
+        }
+      }
+    },
+    "/api/v1/coach/cards": {
+      "get": {
+        "tags": [
+          "Coach"
+        ],
+        "operationId": "getCoachCards",
+        "summary": "Card catalogue: the banks and cards the Coach knows",
+        "description": "The bank cards the Coach knows, per country of residence: each bank, then its cards, with the name printed on the card, its picture, the tier the Coach reads from that name, and the catalogueId that names the card exactly in POST /api/v1/coach/bilan. Built for a card picker: the traveller's bank, then their card, then the bilan with { catalogueId }. byBankTier says whether { bank, network, tier } would land on that same card: at a bank with two cards of one tier, only the most basic one is reachable that way. Travellers whose bank is not listed fall back to the generic { network, tier } profiles listed under generic. Signed like every endpoint, with an empty body: the query string is not signed. Does not consume quota.",
+        "parameters": [
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 2
+            },
+            "example": "FR",
+            "description": "Country of residence, ISO 3166-1 alpha-2. Omitted: every country with a bank list (FR, US, CA, SG, MY). Any other valid code returns an empty banks list."
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "fr",
+                "en"
+              ]
+            },
+            "description": "Language of the card names. Default: French for FR, English elsewhere."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The catalogue.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoachCardsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/api/postback/conversion": {
+      "post": {
+        "tags": [
+          "Conversion"
+        ],
+        "operationId": "postConversion",
+        "summary": "Report a conversion",
+        "description": "Signed server-to-server postback that reports a sale against a tracked link. The short code is re-resolved to a real tracked link and the partner code is checked before any commission is recorded.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ref",
+                  "externalOrderId",
+                  "amount",
+                  "status"
+                ],
+                "properties": {
+                  "ref": {
+                    "type": "string",
+                    "description": "The tracked ref that carried the sale, partnerCode-shortCode.",
+                    "example": "ATL123-a1b2c3d4"
+                  },
+                  "externalOrderId": {
+                    "type": "string",
+                    "description": "Your own order id. Replaying it updates that sale instead of creating a second one."
+                  },
+                  "amount": {
+                    "type": "number",
+                    "description": "Premium paid by the traveller, in the sale currency."
+                  },
+                  "commission": {
+                    "type": "number",
+                    "description": "Optional. Left out, it is computed server side from the configured rate."
+                  },
+                  "currency": {
+                    "type": "string",
+                    "description": "ISO 4217. Defaults to EUR."
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "validated",
+                      "cancelled"
+                    ],
+                    "description": "State of the sale. A cancelled sale reverses the commission."
+                  },
+                  "partnerFeeAmount": {
+                    "type": "number",
+                    "description": "Optional. The uplift slice of the handling fee you actually charged on this sale, in the sale currency. Declarative: the ledger recomputes what it should be from the partner's own grid and pays the lower of the two, so this can only ever reduce what is owed, never inflate it. Leave it out when the offer carried no uplift."
+                  },
+                  "contractVersion": {
+                    "type": "string",
+                    "enum": [
+                      "3.1",
+                      "3.2"
+                    ],
+                    "description": "Optional. Which version of this contract you are speaking. Omitting it means 3.1, the shape that predates partnerFeeAmount, and stays valid. A version this endpoint does not know is refused with 400 UNKNOWN_CONTRACT_VERSION rather than parsed leniently: a field silently dropped here is a sale booked at the wrong price, and past the 14-day auto-validation that is no longer repairable."
+                  }
+                }
+              },
+              "examples": {
+                "validatedSale": {
+                  "summary": "A sale that just cleared",
+                  "value": {
+                    "ref": "ATL123-a1b2c3d4",
+                    "externalOrderId": "ORDER-123",
+                    "amount": 89.9,
+                    "commission": 44.95,
+                    "status": "validated"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Conversion accepted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "AtlasKeyId": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-atlas-key-id",
+        "description": "Your key id, from partners.api_clients."
+      },
+      "AtlasTimestamp": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-atlas-timestamp",
+        "description": "Unix seconds. Rejected beyond a 5 minute replay window."
+      },
+      "AtlasSignature": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-atlas-signature",
+        "description": "v2=<hex HMAC-SHA256 of `${ts}.${METHOD}.${pathname}.${rawBody}`>."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Malformed request.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing, expired or invalid signature.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "The key does not carry the required scope.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "QuotaExceeded": {
+        "description": "Daily quota exhausted; resets at the next UTC midnight.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "examples": [
+              "UNAUTHORIZED",
+              "BAD_LANGUAGE",
+              "NO_TRAVELLERS",
+              "TOO_MANY_TRAVELLERS",
+              "QUOTA_EXCEEDED"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "Trip": {
+        "type": "object",
+        "required": [
+          "intent",
+          "startDate",
+          "endDate",
+          "countryResidence",
+          "arrivalCountries",
+          "travellers"
+        ],
+        "properties": {
+          "intent": {
+            "type": "string",
+            "description": "Trip type. `humanitarianAuPair` is still accepted and read as `humanitarian`.",
+            "enum": [
+              "forTourism",
+              "schengenArea",
+              "annual",
+              "studyInternship",
+              "whv",
+              "cruise",
+              "digitalNomad",
+              "expat",
+              "groupTravel",
+              "rentalStay",
+              "mountainTrip",
+              "backToHome",
+              "humanitarian",
+              "auPair",
+              "toWork",
+              "cancellation"
+            ]
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "description": "First day of cover, YYYY-MM-DD."
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Last day of cover, YYYY-MM-DD. Never before startDate."
+          },
+          "countryResidence": {
+            "type": "string",
+            "description": "ISO 3166-1 alpha-2.",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "stateResidence": {
+            "type": "string",
+            "description": "US residents only: the state they live in, as its USPS code (one of the 50 states or DC, also listed by GET /meta as trip.usStates). US travel insurance is regulated state by state, so `US` alone does not identify a resident. Optional, and it prices nothing: the offers and premiums are the same with or without it. It is echoed in the priced `trip`, and POST /links stores it on the subscription. Read only when countryResidence is `US` and dropped for any other residence; for a US resident, any other value is refused with BAD_STATE_RESIDENCE. The five US territories are countries, not states: a Puerto Rico resident is countryResidence `PR` with no stateResidence, and the same goes for GU, VI, AS and MP.",
+            "enum": [
+              "AL",
+              "AK",
+              "AZ",
+              "AR",
+              "CA",
+              "CO",
+              "CT",
+              "DE",
+              "DC",
+              "FL",
+              "GA",
+              "HI",
+              "ID",
+              "IL",
+              "IN",
+              "IA",
+              "KS",
+              "KY",
+              "LA",
+              "ME",
+              "MD",
+              "MA",
+              "MI",
+              "MN",
+              "MS",
+              "MO",
+              "MT",
+              "NE",
+              "NV",
+              "NH",
+              "NJ",
+              "NM",
+              "NY",
+              "NC",
+              "ND",
+              "OH",
+              "OK",
+              "OR",
+              "PA",
+              "RI",
+              "SC",
+              "SD",
+              "TN",
+              "TX",
+              "UT",
+              "VT",
+              "VA",
+              "WA",
+              "WV",
+              "WI",
+              "WY"
+            ],
+            "example": "NY"
+          },
+          "arrivalCountries": {
+            "type": "array",
+            "description": "ISO 3166-1 alpha-2, up to 20 destinations.",
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$"
+            }
+          },
+          "travellers": {
+            "type": "array",
+            "description": "One entry per traveller, up to 50. Above roughly 10 the individual products give way to the group product, which prices flat per head.",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+              "type": "object",
+              "required": [
+                "age"
+              ],
+              "properties": {
+                "age": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 120
+                }
+              }
+            }
+          },
+          "tripPrice": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Insured trip cost: the total price of the trip for the whole party, not a per-traveller amount. Required when shouldCoverCancellation is true."
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217. The currency we price in, and the one tripPrice and studiesAmount are read in. Default EUR. Offers come back converted into it, using the same rate, margin and rounding as the subscription funnel and the card charge. A code we cannot convert into leaves offers in the insurer's own currency rather than failing the call: 33 codes are supported (USD, EUR, GBP, JPY, CNY, CHF, CAD, AUD, SEK, NOK, DKK, PLN, HUF, CZK, RON, BGN, RSD, ALL, MKD, BAM, BRL, MXN, MAD, ZAR, PHP, TRY, INR, HKD, SGD, AED, KRW, ISK, NZD).",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "shouldCoverCancellation": {
+            "type": "boolean",
+            "default": false,
+            "description": "Ask for cancellation cover. Requires tripPrice."
+          },
+          "shouldCoverExtremeSports": {
+            "type": "boolean",
+            "default": false,
+            "description": "Ask for extreme sports cover."
+          },
+          "isAnnual": {
+            "type": "boolean",
+            "default": false,
+            "description": "Forced true by the annual and expat trip types."
+          }
+        }
+      },
+      "QuoteRequest": {
+        "type": "object",
+        "required": [
+          "trip"
+        ],
+        "properties": {
+          "trip": {
+            "$ref": "#/components/schemas/Trip",
+            "description": "The trip to cover. Fields listed under The trip object below."
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "Optional: the sessionId from THIS traveller's previous /quotes response, to keep their session across a trip edit. A valid token is echoed back; anything else silently starts a fresh session. Never reuse one across travellers."
+          },
+          "language": {
+            "type": "string",
+            "default": "en",
+            "description": "Funnel language.",
+            "enum": [
+              "bg",
+              "cs",
+              "da",
+              "de",
+              "el",
+              "en",
+              "es",
+              "et",
+              "fi",
+              "fr",
+              "hr",
+              "hu",
+              "is",
+              "it",
+              "lt",
+              "lv",
+              "mt",
+              "nl",
+              "no",
+              "pl",
+              "pt",
+              "ro",
+              "sk",
+              "sl",
+              "sv",
+              "tr"
+            ]
+          }
+        }
+      },
+      "Offer": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "plan": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "insurer": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "logoUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uri",
+                "description": "THE IMAGE TO DISPLAY for this offer. Since 2.0.0 this is the offer's own pictogram whenever it has one, and the insurer's logo only for an offer that carries no icon. The field name is now a misnomer and is kept deliberately: your integration already reads it, so you get the new image with no change on your side. `insurer.name` is untouched, so you can keep showing \"underwritten by <insurer>\". The insurer's logo for an offer that has an icon is no longer published in this response."
+              }
+            }
+          },
+          "iconUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "The offer's own pictogram, as an SVG served by the same renderer that draws it on hellosafe.com, so your visitor sees exactly what ours does. Takes an optional `?size=16..512` (default 128); the drawing is vector, so any size is sharp. Since 2.0.0 this is the SAME URL as `insurer.logoUrl` whenever the offer has an icon, and it is published separately so you can tell the two cases apart: `iconUrl` present means the image is our pictogram, `iconUrl` ABSENT — not null, not an empty string — means the offer has no pictogram and `logoUrl` is the insurer's own logo. Reading `logoUrl` alone can no longer tell you which you got. Treat it as optional: every brokerage offer in the live catalogue carries one today (measured 2026-09-03 across FR/US/CA/AU/GB and all 16 trip types), but an offer can be published without one.",
+            "example": "https://hellosafe.com/api/offer-icon/156"
+          },
+          "price": {
+            "type": "object",
+            "properties": {
+              "amount": {
+                "type": "number",
+                "description": "What the traveller pays. When the request carried a `currency` and conversion was possible, this is the converted amount, using the same rate, margin and rounding as the subscription funnel and the card charge. Display this value. Converting `insurerAmount` yourself will quote your customer less than they are charged."
+              },
+              "amountInCents": {
+                "type": "integer",
+                "description": "`amount` in minor units of `currency`."
+              },
+              "currency": {
+                "type": "string",
+                "description": "ISO 4217, uppercase. Equal to the requested `currency` when conversion happened.",
+                "example": "AUD"
+              },
+              "insurerAmount": {
+                "type": "number",
+                "description": "The insurer's own price, before conversion. Equal to `amount` when no conversion happened. For reconciliation, not for display."
+              },
+              "insurerCurrency": {
+                "type": "string",
+                "description": "ISO 4217, uppercase. The currency the insurer prices in.",
+                "example": "EUR"
+              },
+              "isStartingPrice": {
+                "type": "boolean",
+                "description": "true = a from price; the exact premium is set in the funnel."
+              },
+              "period": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "guaranteeCurrency": {
+            "type": "string",
+            "description": "Currency the guarantee ceilings are expressed in."
+          },
+          "guarantees": {
+            "type": "object",
+            "description": "Keyed by guarantee slug (see GET /api/v1/travel/meta).",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "value",
+                    "included",
+                    "actual_costs",
+                    "per_day",
+                    "return_ticket",
+                    "trip_price",
+                    "studies_amount",
+                    "not_available"
+                  ]
+                },
+                "value": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "highlights": {
+            "type": "object",
+            "properties": {
+              "included": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "excluded": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "documents": {
+            "type": "object",
+            "properties": {
+              "cgvUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uri"
+              },
+              "ipidUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uri"
+              }
+            }
+          },
+          "position": {
+            "type": "integer",
+            "description": "Rank by premium, cheapest first."
+          }
+        }
+      },
+      "QuoteResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "sandbox",
+              "live"
+            ]
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "This traveller's quoting session, `qs_<nonce>.<hmac>`. Required by POST /links. Fresh on every response unless you echoed a valid one in."
+          },
+          "offers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Offer"
+            }
+          },
+          "unpricedCount": {
+            "type": "integer",
+            "description": "Catalogue offers that could not be priced for this trip."
+          },
+          "redirectOnlyCount": {
+            "type": "integer",
+            "description": "Offers that matched and were priced but are deliberately NOT returned: the catalogue sells them by redirecting the traveller to the insurer's own site, so no subscription is created, the conversion postback never fires, and the sale could not be attributed or paid to you. Normally 0, because they are now excluded before we ever see them; a non-zero value means one slipped past that exclusion and our own filter caught it. Every offer you DO get back is one you can be paid on."
+          },
+          "nearMissCount": {
+            "type": "integer",
+            "description": "Offers that would match if a filter were relaxed."
+          },
+          "trip": {
+            "$ref": "#/components/schemas/Trip"
+          },
+          "quote": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string"
+              },
+              "days": {
+                "type": "integer"
+              },
+              "travellers": {
+                "type": "integer"
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "apiVersion": {
+                "type": "string"
+              },
+              "language": {
+                "type": "string"
+              },
+              "notice": {
+                "type": "string",
+                "description": "Plain-language caveat about the prices in this response."
+              },
+              "partnerFee": {
+                "type": "object",
+                "description": "Present ONLY when your account charges an uplift on top of the standard handling fee. It is not a separate amount to add: every price.amount below already includes it, and the funnel charges the same figure at checkout. Absent means the standard fee, and the commission your account earns by default.",
+                "properties": {
+                  "feeBps": {
+                    "type": "integer",
+                    "description": "Whole handling fee applied to these prices, in basis points of the insurer premium (1300 = 13%).",
+                    "example": 3300
+                  },
+                  "upliftBps": {
+                    "type": "integer",
+                    "description": "The part of that fee you chose to add, in basis points of the premium.",
+                    "example": 2000
+                  },
+                  "commissionBps": {
+                    "type": "integer",
+                    "description": "What a sale at these prices pays you, in basis points of the premium.",
+                    "example": 2700
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "LinkRequest": {
+        "type": "object",
+        "required": [
+          "sessionId",
+          "trip"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "description": "The traveller's quoting session, from the POST /quotes response. Required: one session = one traveller = one subscription. A fabricated value fails with BAD_SESSION_ID."
+          },
+          "trip": {
+            "$ref": "#/components/schemas/Trip",
+            "description": "The trip to cover. Fields listed under The trip object below."
+          },
+          "language": {
+            "type": "string",
+            "default": "en",
+            "description": "Funnel language shown to the traveller. Default en."
+          },
+          "offerId": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "The `id` of the /quotes offer the traveller clicked. The link then lands on the presubscribe form with that offer selected, re-rated live; omitted, it lands on the offer list."
+          },
+          "linkCode": {
+            "type": "string",
+            "description": "One of your own tracked links, to split reporting by channel. A session's attribution is fixed by its first /links call."
+          }
+        }
+      },
+      "LinkResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "sandbox",
+              "live"
+            ]
+          },
+          "subscriptionId": {
+            "type": "string",
+            "description": "Stable for the whole session while the traveller is still quoting; once they presubscribe or pay, the session rolls onto a fresh one. In sandbox, a placeholder (`sub_sandbox_...`): no subscription exists behind it."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Hand this to the traveller, as it comes. Live key: a tracked short link (https://atlas.hellosafe.com/r/<code>?quote=..&offer=..) that counts each click on your link in the dashboard, then opens the quote: with an offerId, the presubscribe form with the offer selected; otherwise the offer list. Attribution lives on the quote, so it holds either way, and the redirect still lands on the quote if the click cannot be counted. Sandbox key: it opens the real hellosafe.com quote form with residence, destinations, traveller count and intent prefilled (never dates or ages), credits nothing, and any payment made through it is real."
+          },
+          "ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The affiliate reference baked into the subscription. Null in sandbox."
+          },
+          "offerId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Echo of the offer this response's url carries."
+          },
+          "replayed": {
+            "type": "boolean",
+            "description": "True when the session already held its subscription (HTTP 200 instead of 201)."
+          },
+          "updated": {
+            "type": "boolean",
+            "description": "True when this call changed the subscription's trip in place."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "meta": {
+            "type": "object"
+          }
+        }
+      },
+      "MetaResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "apiVersion": {
+            "type": "string"
+          },
+          "key": {
+            "type": "object",
+            "properties": {
+              "keyId": {
+                "type": "string"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "sandbox",
+                  "live"
+                ]
+              },
+              "scopes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "quota": {
+                "type": "object"
+              },
+              "lifetime": {
+                "type": "object"
+              }
+            }
+          },
+          "trip": {
+            "type": "object",
+            "properties": {
+              "intents": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "languages": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "usStates": {
+                "type": "array",
+                "description": "The USPS codes stateResidence accepts: the 50 states and DC.",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "maxTravellers": {
+                "type": "integer"
+              },
+              "maxDestinations": {
+                "type": "integer"
+              },
+              "notes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "guarantees": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "group": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "states": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string"
+                },
+                "meaning": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "CoachCardsResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "country": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The country asked for, or null when every country was listed."
+          },
+          "key": {
+            "type": "object",
+            "properties": {
+              "keyId": {
+                "type": "string"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "sandbox",
+                  "live"
+                ]
+              },
+              "cardModes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "bin",
+                    "bank",
+                    "catalogueId",
+                    "network",
+                    "none"
+                  ]
+                },
+                "description": "The card modes this key may send to POST /api/v1/coach/bilan."
+              }
+            }
+          },
+          "countries": {
+            "type": "array",
+            "description": "Every country with a bank list, whichever country was asked for.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "market": {
+                  "type": "string"
+                },
+                "banks": {
+                  "type": "integer"
+                },
+                "cards": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "banks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "The bank name the { bank, network, tier } mode accepts."
+                },
+                "country": {
+                  "type": "string"
+                },
+                "logoUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "cards": {
+                  "type": "array",
+                  "description": "Most basic first.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "catalogueId": {
+                        "type": "integer",
+                        "description": "Names this card exactly: send it as card.catalogueId."
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "The card's name as printed."
+                      },
+                      "network": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "visa, mastercard, amex..."
+                      },
+                      "tier": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "enum": [
+                          "entry",
+                          "mid",
+                          "premium",
+                          "elite",
+                          "business",
+                          null
+                        ],
+                        "description": "The range the Coach reads from the card's name. Null when the name carries no range word."
+                      },
+                      "byBankTier": {
+                        "type": "boolean",
+                        "description": "True when { bank, network, tier } lands on this very card."
+                      },
+                      "imageUrl": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "generic": {
+            "type": "array",
+            "description": "Networks and the tiers with a generic profile of their own, for a bank that is not listed.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "network": {
+                  "type": "string"
+                },
+                "tiers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "tiers": {
+            "type": "array",
+            "description": "What each tier reads as on a card.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tier": {
+                  "type": "string"
+                },
+                "examples": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,16 +1,36 @@
 openapi: 3.2.0
 info:
   title: HelloSafe Travel Insurance Links API
-  version: 1.0.0
+  version: 2.3.2
   summary: Price and sell travel insurance from any travel product.
-  description: A REST API that prices a trip against a multi-insurer travel insurance catalogue and returns comparable offers with their guarantees, then mints a tracked subscription link so the sale is attributed and paid as commission.
+  description: 'A REST API that prices a trip against a multi-insurer travel insurance catalogue and returns comparable offers with their guarantees, then mints a tracked subscription link so the sale is attributed and paid as commission. Built for travel agencies, tour operators, OTAs, booking engines and travel apps that want to add travel insurance without becoming an insurer or holding a distribution licence.
+
+
+    Every key ships with a free sandbox that returns deterministic fixtures in the exact live response shape, so an integration can be built and tested end to end before a single insurer is called.
+
+
+    **Authentication** is a per-caller HMAC-SHA256 handshake, server to server. Send three headers:
+
+
+    - `x-atlas-key-id`: your key id
+
+    - `x-atlas-timestamp`: unix seconds, rejected beyond a 5 minute window
+
+    - `x-atlas-signature`: `v2=` + hex HMAC-SHA256 of `${timestamp}.${METHOD}.${pathname}.${rawBody}`, keyed with your signing secret
+
+
+    The signature covers the raw request body byte for byte. There is no CORS header on these responses: the signing secret must never reach a browser.'
   termsOfService: https://atlas.hellosafe.com/legal/terms
   contact:
     name: HelloSafe Atlas
-    url: https://atlas.hellosafe.com/platform/api
+    url: https://atlas.hellosafe.com/platform/api/documentation
     email: atlas@hellosafe.com
   x-logo:
     url: https://atlas.hellosafe.com/hellosafe-logo.svg
+  x-providerName: atlas.hellosafe.com
+  x-apisguru-categories:
+  - financial
+  - ecommerce
   license:
     name: Proprietary
     url: https://atlas.hellosafe.com/legal/terms
@@ -31,24 +51,50 @@ paths:
       - Links
       operationId: createTravelLink
       summary: Mint a tracked subscription link
-      description: Creates a quoting-stage subscription with your affiliate reference baked in server-side, and returns the URL that resumes it. The reference lives on the subscription rather than in a query string, so attribution survives a copy-paste through a messaging app, an email client and a browser redirect, and cannot be forged.
-      parameters:
-      - name: Idempotency-Key
-        in: header
-        required: false
-        schema:
-          type: string
-          maxLength: 128
-        description: Replaying the same key returns the first link created for it.
+      description: 'Turns a quoting session into the tracked link handed to the traveller. The first call of a session creates a quoting-stage subscription with your affiliate reference baked in server-side and returns the URL that resumes it; every later call of the SAME session returns the SAME subscription: a repeat offer click replays it (200, `replayed: true`), a changed trip updates it in place (`updated: true`), and a different session can never reach it, so two travellers with identical trips can never share a link. One exception protects the traveller: once they take the subscription past quoting (presubscribed, paid, subscribed), it is frozen, and the next call of the session rolls onto a fresh subscription (201, new subscriptionId) that the session follows from then on.
+
+
+        `sessionId` is REQUIRED and comes from the POST /quotes response; a fabricated value fails its HMAC with BAD_SESSION_ID. Pass the `offerId` the traveller clicked to land them straight on the presubscribe form with that offer selected at the live re-rated premium (the funnel falls back to the offer list when the offer no longer prices); without it the link lands on the offer list.
+
+
+        The affiliate reference lives on the subscription rather than in a query string, so attribution survives a copy-paste through a messaging app, an email client and a browser redirect, and cannot be forged.
+
+
+        With a sandbox key (`ak_test_`), no real subscription is created, so there is nothing for the link to resume. `subscriptionId` is a placeholder (`sub_sandbox_...`), `ref` is null, and `url` opens the HelloSafe quote form with only the residence country, destinations, number of travellers and trip intent prefilled: never the dates or the ages, and never the subscription step, even when you pass an `offerId`. The prefilled subscription step (`/travel-insurance/app/subscribe?subscription_id=...&offerId=...`) only exists with a live key (`ak_live_`).
+
+
+        Warning: the sandbox link opens the real hellosafe.com funnel. There is no test card and no sandbox checkout, so any payment made through a sandbox link is a real purchase with a real card. Testing the payment step end to end means making a real purchase through a link minted with your live key.'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/LinkRequest'
+            examples:
+              chosenOffer:
+                summary: The trip you just priced and the offer the traveller clicked
+                value:
+                  sessionId: qs_PASTE_THE_SESSION_FROM_YOUR_QUOTES_RESPONSE
+                  trip:
+                    intent: forTourism
+                    startDate: '2026-09-10'
+                    endDate: '2026-09-24'
+                    countryResidence: FR
+                    arrivalCountries:
+                    - TH
+                    travellers:
+                    - age: 32
+                  language: en
+                  offerId: 900001
       responses:
+        '200':
+          description: 'The session already holds its subscription: replayed (and updated in place when the trip changed).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkResponse'
         '201':
-          description: Tracked link created.
+          description: 'First mint of this session: the tracked link was created.'
           content:
             application/json:
               schema:
@@ -61,8 +107,32 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '429':
           $ref: '#/components/responses/QuotaExceeded'
+          description: Refused. QUOTA_EXCEEDED when the daily bucket is spent (Retry-After points at the next UTC day), RATE_LIMITED when more than 60 calls left in the current minute (Retry-After points at the next minute). Neither refusal is counted against your quota.
 components:
   schemas:
+    LinkRequest:
+      type: object
+      required:
+      - sessionId
+      - trip
+      properties:
+        sessionId:
+          type: string
+          description: 'The traveller''s quoting session, from the POST /quotes response. Required: one session = one traveller = one subscription. A fabricated value fails with BAD_SESSION_ID.'
+        trip:
+          $ref: '#/components/schemas/Trip'
+          description: The trip to cover. Fields listed under The trip object below.
+        language:
+          type: string
+          default: en
+          description: Funnel language shown to the traveller. Default en.
+        offerId:
+          type: integer
+          minimum: 1
+          description: The `id` of the /quotes offer the traveller clicked. The link then lands on the presubscribe form with that offer selected, re-rated live; omitted, it lands on the offer list.
+        linkCode:
+          type: string
+          description: One of your own tracked links, to split reporting by channel. A session's attribution is fixed by its first /links call.
     Trip:
       type: object
       required:
@@ -75,7 +145,7 @@ components:
       properties:
         intent:
           type: string
-          description: Trip type.
+          description: Trip type. `humanitarianAuPair` is still accepted and read as `humanitarian`.
           enum:
           - forTourism
           - schengenArea
@@ -89,19 +159,78 @@ components:
           - rentalStay
           - mountainTrip
           - backToHome
-          - humanitarianAuPair
+          - humanitarian
+          - auPair
           - toWork
           - cancellation
         startDate:
           type: string
           format: date
+          description: First day of cover, YYYY-MM-DD.
         endDate:
           type: string
           format: date
+          description: Last day of cover, YYYY-MM-DD. Never before startDate.
         countryResidence:
           type: string
           description: ISO 3166-1 alpha-2.
           pattern: ^[A-Z]{2}$
+        stateResidence:
+          type: string
+          description: 'US residents only: the state they live in, as its USPS code (one of the 50 states or DC, also listed by GET /meta as trip.usStates). US travel insurance is regulated state by state, so `US` alone does not identify a resident. Optional, and it prices nothing: the offers and premiums are the same with or without it. It is echoed in the priced `trip`, and POST /links stores it on the subscription. Read only when countryResidence is `US` and dropped for any other residence; for a US resident, any other value is refused with BAD_STATE_RESIDENCE. The five US territories are countries, not states: a Puerto Rico resident is countryResidence `PR` with no stateResidence, and the same goes for GU, VI, AS and MP.'
+          enum:
+          - AL
+          - AK
+          - AZ
+          - AR
+          - CA
+          - CO
+          - CT
+          - DE
+          - DC
+          - FL
+          - GA
+          - HI
+          - ID
+          - IL
+          - IN
+          - IA
+          - KS
+          - KY
+          - LA
+          - ME
+          - MD
+          - MA
+          - MI
+          - MN
+          - MS
+          - MO
+          - MT
+          - NE
+          - NV
+          - NH
+          - NJ
+          - NM
+          - NY
+          - NC
+          - ND
+          - OH
+          - OK
+          - OR
+          - PA
+          - RI
+          - SC
+          - SD
+          - TN
+          - TX
+          - UT
+          - VT
+          - VA
+          - WA
+          - WV
+          - WI
+          - WY
+          example: NY
         arrivalCountries:
           type: array
           description: ISO 3166-1 alpha-2, up to 20 destinations.
@@ -111,9 +240,9 @@ components:
             pattern: ^[A-Z]{2}$
         travellers:
           type: array
-          description: One entry per traveller, up to 10.
+          description: One entry per traveller, up to 50. Above roughly 10 the individual products give way to the group product, which prices flat per head.
           minItems: 1
-          maxItems: 10
+          maxItems: 50
           items:
             type: object
             required:
@@ -126,45 +255,23 @@ components:
         tripPrice:
           type: number
           minimum: 0
-          description: Insured trip cost. Required when shouldCoverCancellation is true.
+          description: 'Insured trip cost: the total price of the trip for the whole party, not a per-traveller amount. Required when shouldCoverCancellation is true.'
         currency:
           type: string
-          description: ISO 4217. Applies to tripPrice and studiesAmount.
+          description: 'ISO 4217. The currency we price in, and the one tripPrice and studiesAmount are read in. Default EUR. Offers come back converted into it, using the same rate, margin and rounding as the subscription funnel and the card charge. A code we cannot convert into leaves offers in the insurer''s own currency rather than failing the call: 33 codes are supported (USD, EUR, GBP, JPY, CNY, CHF, CAD, AUD, SEK, NOK, DKK, PLN, HUF, CZK, RON, BGN, RSD, ALL, MKD, BAM, BRL, MXN, MAD, ZAR, PHP, TRY, INR, HKD, SGD, AED, KRW, ISK, NZD).'
           pattern: ^[A-Z]{3}$
         shouldCoverCancellation:
           type: boolean
           default: false
+          description: Ask for cancellation cover. Requires tripPrice.
         shouldCoverExtremeSports:
           type: boolean
           default: false
+          description: Ask for extreme sports cover.
         isAnnual:
           type: boolean
           default: false
           description: Forced true by the annual and expat trip types.
-    LinkResponse:
-      type: object
-      properties:
-        ok:
-          type: boolean
-        mode:
-          type: string
-          enum:
-          - sandbox
-          - live
-        subscriptionId:
-          type: string
-        url:
-          type: string
-          format: uri
-          description: 'Hand this to the traveller: it resumes the quote with attribution attached.'
-        ref:
-          type: string
-          description: The affiliate reference baked into the subscription.
-        expiresAt:
-          type: string
-          format: date-time
-        meta:
-          type: object
     Error:
       type: object
       properties:
@@ -178,22 +285,47 @@ components:
           - QUOTA_EXCEEDED
       required:
       - error
-    LinkRequest:
+    LinkResponse:
       type: object
-      required:
-      - trip
       properties:
-        trip:
-          $ref: '#/components/schemas/Trip'
-        language:
+        ok:
+          type: boolean
+        mode:
           type: string
-          default: en
-        linkCode:
+          enum:
+          - sandbox
+          - live
+        subscriptionId:
           type: string
-          description: One of your own tracked links, to split reporting by channel.
+          description: 'Stable for the whole session while the traveller is still quoting; once they presubscribe or pay, the session rolls onto a fresh one. In sandbox, a placeholder (`sub_sandbox_...`): no subscription exists behind it.'
+        url:
+          type: string
+          format: uri
+          description: 'Hand this to the traveller, as it comes. Live key: a tracked short link (https://atlas.hellosafe.com/r/<code>?quote=..&offer=..) that counts each click on your link in the dashboard, then opens the quote: with an offerId, the presubscribe form with the offer selected; otherwise the offer list. Attribution lives on the quote, so it holds either way, and the redirect still lands on the quote if the click cannot be counted. Sandbox key: it opens the real hellosafe.com quote form with residence, destinations, traveller count and intent prefilled (never dates or ages), credits nothing, and any payment made through it is real.'
+        ref:
+          type:
+          - string
+          - 'null'
+          description: The affiliate reference baked into the subscription. Null in sandbox.
+        offerId:
+          type:
+          - integer
+          - 'null'
+          description: Echo of the offer this response's url carries.
+        replayed:
+          type: boolean
+          description: True when the session already held its subscription (HTTP 200 instead of 201).
+        updated:
+          type: boolean
+          description: True when this call changed the subscription's trip in place.
+        expiresAt:
+          type: string
+          format: date-time
+        meta:
+          type: object
   responses:
-    QuotaExceeded:
-      description: Daily quota exhausted; resets at the next UTC midnight.
+    BadRequest:
+      description: Malformed request.
       content:
         application/json:
           schema:
@@ -210,8 +342,8 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
-    BadRequest:
-      description: Malformed request.
+    QuotaExceeded:
+      description: Daily quota exhausted; resets at the next UTC midnight.
       content:
         application/json:
           schema:
@@ -234,4 +366,4 @@ components:
       description: v2=<hex HMAC-SHA256 of `${ts}.${METHOD}.${pathname}.${rawBody}`>.
 externalDocs:
   description: Travel insurance API documentation
-  url: https://atlas.hellosafe.com/platform/api
+  url: https://atlas.hellosafe.com/platform/api/documentation

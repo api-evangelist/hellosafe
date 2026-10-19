@@ -1,16 +1,36 @@
 openapi: 3.2.0
 info:
   title: HelloSafe Travel Insurance Conversion API
-  version: 1.0.0
+  version: 2.3.2
   summary: Price and sell travel insurance from any travel product.
-  description: A REST API that prices a trip against a multi-insurer travel insurance catalogue and returns comparable offers with their guarantees, then mints a tracked subscription link so the sale is attributed and paid as commission.
+  description: 'A REST API that prices a trip against a multi-insurer travel insurance catalogue and returns comparable offers with their guarantees, then mints a tracked subscription link so the sale is attributed and paid as commission. Built for travel agencies, tour operators, OTAs, booking engines and travel apps that want to add travel insurance without becoming an insurer or holding a distribution licence.
+
+
+    Every key ships with a free sandbox that returns deterministic fixtures in the exact live response shape, so an integration can be built and tested end to end before a single insurer is called.
+
+
+    **Authentication** is a per-caller HMAC-SHA256 handshake, server to server. Send three headers:
+
+
+    - `x-atlas-key-id`: your key id
+
+    - `x-atlas-timestamp`: unix seconds, rejected beyond a 5 minute window
+
+    - `x-atlas-signature`: `v2=` + hex HMAC-SHA256 of `${timestamp}.${METHOD}.${pathname}.${rawBody}`, keyed with your signing secret
+
+
+    The signature covers the raw request body byte for byte. There is no CORS header on these responses: the signing secret must never reach a browser.'
   termsOfService: https://atlas.hellosafe.com/legal/terms
   contact:
     name: HelloSafe Atlas
-    url: https://atlas.hellosafe.com/platform/api
+    url: https://atlas.hellosafe.com/platform/api/documentation
     email: atlas@hellosafe.com
   x-logo:
     url: https://atlas.hellosafe.com/hellosafe-logo.svg
+  x-providerName: atlas.hellosafe.com
+  x-apisguru-categories:
+  - financial
+  - ecommerce
   license:
     name: Proprietary
     url: https://atlas.hellosafe.com/legal/terms
@@ -38,19 +58,59 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+              - ref
+              - externalOrderId
+              - amount
+              - status
+              properties:
+                ref:
+                  type: string
+                  description: The tracked ref that carried the sale, partnerCode-shortCode.
+                  example: ATL123-a1b2c3d4
+                externalOrderId:
+                  type: string
+                  description: Your own order id. Replaying it updates that sale instead of creating a second one.
+                amount:
+                  type: number
+                  description: Premium paid by the traveller, in the sale currency.
+                commission:
+                  type: number
+                  description: Optional. Left out, it is computed server side from the configured rate.
+                currency:
+                  type: string
+                  description: ISO 4217. Defaults to EUR.
+                status:
+                  type: string
+                  enum:
+                  - pending
+                  - validated
+                  - cancelled
+                  description: State of the sale. A cancelled sale reverses the commission.
+                partnerFeeAmount:
+                  type: number
+                  description: 'Optional. The uplift slice of the handling fee you actually charged on this sale, in the sale currency. Declarative: the ledger recomputes what it should be from the partner''s own grid and pays the lower of the two, so this can only ever reduce what is owed, never inflate it. Leave it out when the offer carried no uplift.'
+                contractVersion:
+                  type: string
+                  enum:
+                  - '3.1'
+                  - '3.2'
+                  description: 'Optional. Which version of this contract you are speaking. Omitting it means 3.1, the shape that predates partnerFeeAmount, and stays valid. A version this endpoint does not know is refused with 400 UNKNOWN_CONTRACT_VERSION rather than parsed leniently: a field silently dropped here is a sale booked at the wrong price, and past the 14-day auto-validation that is no longer repairable.'
+            examples:
+              validatedSale:
+                summary: A sale that just cleared
+                value:
+                  ref: ATL123-a1b2c3d4
+                  externalOrderId: ORDER-123
+                  amount: 89.9
+                  commission: 44.95
+                  status: validated
       responses:
         '200':
           description: Conversion accepted.
         '401':
           $ref: '#/components/responses/Unauthorized'
 components:
-  responses:
-    Unauthorized:
-      description: Missing, expired or invalid signature.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
   schemas:
     Error:
       type: object
@@ -65,6 +125,13 @@ components:
           - QUOTA_EXCEEDED
       required:
       - error
+  responses:
+    Unauthorized:
+      description: Missing, expired or invalid signature.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   securitySchemes:
     AtlasKeyId:
       type: apiKey
@@ -83,4 +150,4 @@ components:
       description: v2=<hex HMAC-SHA256 of `${ts}.${METHOD}.${pathname}.${rawBody}`>.
 externalDocs:
   description: Travel insurance API documentation
-  url: https://atlas.hellosafe.com/platform/api
+  url: https://atlas.hellosafe.com/platform/api/documentation
