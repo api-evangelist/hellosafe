@@ -368,3 +368,9 @@ components:
 externalDocs:
   description: Travel insurance API documentation
   url: https://atlas.hellosafe.com/platform/api/documentation
+x-provenance:
+  method: harvested
+  publisher: HelloSafe
+  source: https://atlas.hellosafe.com/openapi.json
+  note: split by refine-openapis from the provider's own published document, verified by fetch (openapi/_original/*.fetch.json);
+    stamped by stamp-openapi-provenance.py (roadmap#793)
